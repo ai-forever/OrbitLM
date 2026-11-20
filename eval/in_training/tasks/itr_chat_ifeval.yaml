@@ -1,0 +1,35 @@
+# IFEval for SFT checkpoints, scored by lm-eval's own instruction checks on the answer part only (the
+# text after the last </think>), so that length, punctuation and ending rules do not see the reasoning.
+# All 541 prompts; the language checks of 95 of them need langdetect, which the startup check imports.
+tag:
+  - in_training_eval_chat
+task: itr_chat_ifeval
+dataset_path: google/IFEval
+dataset_name: null
+dataset_kwargs:
+  revision: 966cd89545d6b6acfd7638bc708b98261ca58e84
+output_type: generate_until
+test_split: train
+process_docs: !function chat_local.process_ifeval
+doc_to_text: !function chat_local.plain_prompt
+doc_to_target: 0
+process_results: !function chat_local.process_ifeval_results
+generation_kwargs:
+  until: []
+  max_gen_toks: 4096
+num_fewshot: 0
+metric_list:
+  - metric: prompt_level_strict_acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: inst_level_strict_acc
+    aggregation: !function chat_local.agg_inst_level_acc
+    higher_is_better: true
+  - metric: prompt_level_loose_acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: inst_level_loose_acc
+    aggregation: !function chat_local.agg_inst_level_acc
+    higher_is_better: true
+metadata:
+  version: 1.0

@@ -1,0 +1,26 @@
+# MATH-500 for SFT checkpoints: 0-shot chat with the Qwen3 card's format instruction, scored by
+# math_verify on the text after the last </think> (chat_local.py). The prompt mode, the sampling and
+# the budget come from the suite's chat section; the max_gen_toks here only holds when a run gives none.
+tag:
+  - in_training_eval_chat
+task: itr_chat_math500
+dataset_path: HuggingFaceH4/MATH-500
+dataset_name: null
+dataset_kwargs:
+  revision: 6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be
+output_type: generate_until
+test_split: test
+process_docs: !function chat_local.process_math500
+doc_to_text: !function chat_local.math_prompt
+doc_to_target: answer
+process_results: !function chat_local.process_math
+generation_kwargs:
+  until: []
+  max_gen_toks: 4096
+num_fewshot: 0
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

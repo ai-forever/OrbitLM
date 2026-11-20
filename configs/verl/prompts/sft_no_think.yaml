@@ -1,0 +1,4 @@
+# The release chat format in no-think mode: like sft_think.yaml, but the assistant turn starts with
+# an empty, closed thinking block, as data_prep/tokenizer/templates/qwen35_think.jinja renders it with
+# enable_thinking=false.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\nPlease reason step by step, and put your final answer within \\boxed{{}}.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"

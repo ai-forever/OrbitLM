@@ -1,0 +1,144 @@
+# Stage 3 of OrbitLM: context extension to 16K, one phase of 200B tokens on 64 GPUs.
+# The data is described in data_prep/README.md.
+#
+# Start: the base HF export of the final 4K checkpoint (stage 2, step 200000), loaded model-only
+# through init_from_hf. The run_name is new, so auto_resume finds no latest.txt on the first
+# start and uses init_from_hf; after a restart it resumes this run's own checkpoints.
+# A run with this config must log "document_masking=1 boundary_token_id=151643".
+#
+# The FA3 kernel: with 64 ranks, point ORBIT_ATTN_KERNEL_PATH at a local build of
+# kernels-community/vllm-flash-attn3 for the torch version of the training environment. Without
+# it every rank downloads the kernel from the HF Hub at every start, and the Hub can refuse that
+# many requests.
+# The ${...} variables are described in src/orbit/README.md.
+save_dir: ${ORBIT_RUNS}
+run_name: orbit_stage3_16k
+
+auto_resume: true
+init_from_hf: ${ORBIT_EXPORTS}/stage2_4k_step200000
+resume_from: null
+
+detect_nan: true
+dump_nonfinite_batch: ${ORBIT_RUNS}/nan_dumps
+
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+tokenizer_config: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_orbit/tokenizer_config.json
+
+# 2e-5 was stable in short trial runs. A short warmup from 0.1 x lr, then cosine down to
+# 0.1 x lr over the rest of the stage.
+lr: 2e-5
+lr_scheduler: warmup_cosine
+lr_warmup_steps: 500
+lr_warmup_start_lr: null
+lr_warmup_start_factor: 0.1
+lr_warmup_start_step: auto
+lr_cosine_steps: auto
+lr_min: 2e-6
+lr_min_factor: 0.1
+
+beta: 0.15
+seq_len: 16384
+total_ut_steps: 4
+# Written out on purpose: without this key the trainer keeps the export's 40000. In trial runs
+# 1e6 found a passkey at 8-16K in 92-100% of cases, against 21-58% with 40000.
+rope_theta: 1000000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+
+# Attention stops at document boundaries (EOS 151643). In trial runs it cut the step time by 13%
+# and helped short documents, with no loss on long ones.
+document_masking: true
+
+# 4 x 16384 tokens per GPU at 64 GPUs gives 4,194,304 tokens per step with grad_accum 1;
+# 200B tokens is 47,684 steps.
+tokens_per_step: 4194304
+token_budget: 200000000000
+
+batch_size: 4
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+predownload: null
+cache_limit: null
+seed: 44
+model_init_seed: 271828
+# Every stream is a folder of 16,385-token samples with one index.json. The shares come from
+# data_prep/long_context/mix.py --stage 16k.
+stage1_root: ${ORBIT_DATA}/ctx16k/streams
+stage1_epoch_samples: 1000000000
+stage1_mixing_mode: mosaic_random
+stage1_shuffle: true
+# A new seed, so the 16K stage does not replay the 4K run's sampling order.
+stage1_shuffle_seed: 16385
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+stage1_token_dtype: uint32
+
+stage1_streams:
+  nemotron_cc: nemotron_cc
+  ru_web_le8k: ru_web_le8k
+  cc_math: cc_math
+  opc: opc
+  ru_wiki: ru_wiki
+  olmocr_science: olmocr_science
+  olmocr_health: olmocr_health
+  olmocr_literature: olmocr_literature
+  ru_books: ru_books
+  finepdfs_ru: finepdfs_ru
+  code_repos: code_repos
+  arxiv: arxiv
+  acereason: acereason
+  openthoughts3: openthoughts3
+  cascade_sft: cascade_sft
+  nemotron_if: nemotron_if
+  smoltalk2_en: smoltalk2_en
+  twix: twix
+  ru_sft: ru_sft
+  grandmaster: grandmaster
+  oasst2_ru: oasst2_ru
+  bench_train: bench_train
+  bench_math: bench_math
+  bench_mcq: bench_mcq
+  bench_math_dm: bench_math_dm
+stage1_dataset_proportions:
+  nemotron_cc: 0.290287
+  ru_web_le8k: 0.170168
+  cc_math: 0.060059
+  opc: 0.007507
+  ru_wiki: 0.001501
+  olmocr_science: 0.140139
+  olmocr_health: 0.04004
+  olmocr_literature: 0.014014
+  ru_books: 0.054054
+  finepdfs_ru: 0.035035
+  code_repos: 0.04004
+  arxiv: 0.017517
+  acereason: 0.056055
+  openthoughts3: 0.015015
+  cascade_sft: 0.005005
+  nemotron_if: 0.013013
+  smoltalk2_en: 0.001001
+  twix: 0.006506
+  ru_sft: 0.002002
+  grandmaster: 0.001001
+  oasst2_ru: 1e-05
+  bench_train: 0.001501
+  bench_math: 0.015015
+  bench_mcq: 0.004504
+  bench_math_dm: 0.009009
+
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+save_every: 1000
+tensorboard_root: ${ORBIT_RUNS}/tensorboard

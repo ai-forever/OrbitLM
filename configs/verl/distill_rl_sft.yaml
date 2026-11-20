@@ -1,0 +1,105 @@
+# The hybrid variant of distill_sft.yaml: on-policy distillation plus a GRPO task reward on gold math
+# and code rows. Everything not set here is distill_sft's: the teacher, the prompt pool, the lengths,
+# the no-think cap and the validation sets. The loop-tail mask is turned off here (see below).
+# The release recipe runs it at 16K with a thinking budget (distill_rl_sft_16k.yaml).
+#
+# What the loss is. verl adds its stock policy loss with GRPO advantages from the task reward to the
+# distillation loss: total = ppo_loss + distillation_loss_coef x distillation loss. Both terms are
+# policy-gradient losses on the final loop, averaged over the tokens of the batch.
+#
+# Which rows get which signal.
+# - Gold rows (orbit.prepare.data.gold): math problems with a boxed answer and code problems with
+#   tests. Their reward is 1 when the answer after </think> is right. It is 0 when the answer is
+#   wrong, when the response is cut by the length limit (truncated_score 0), and when the response
+#   ends inside its thinking block.
+# - Pool rows (orbit/none): their reward is always 0. All 4 answers of such a prompt score the same,
+#   so their GRPO advantage is 0, and only the teacher trains them, exactly as in distill_sft.
+#
+# Why this targets closing the thinking block and math and code accuracy. GRPO compares the 4
+# answers to the same problem. An answer that closes its thinking within 8K tokens and gets the
+# result right gets a positive advantage. An answer that loops or runs into the limit gets a negative
+# one. The teacher alone does not push that way: k1 only says how likely each token is, and once a
+# loop has begun, the teacher predicts the next copy of the repeated text as well. An answer that
+# never closes its thinking block has nothing to check and is always wrong, so the task reward is
+# the signal that teaches the model to close the block in time.
+#
+# Why the loop-tail mask is off here. verl has one response mask per answer, and both loss terms
+# read it: the GRPO term and the distillation term. With the mask on, a gold answer that loops
+# until the length limit would get its negative advantage only on the text before the loop, and
+# the looping tokens themselves would get no gradient at all. The GRPO penalty is the one signal
+# here that pushes against a loop, so it has to reach those tokens. The cost is that distillation
+# also trains on the loop tails of pool rows, where the teacher may predict the next copy.
+#
+# Why distillation still protects MMLU and IFEval. A task reward alone reaches only the gold rows:
+# IFEval, the no-think answers, Russian and chat get no signal from it and can drift.
+# Here every token of every row, gold or not, is also pulled towards a stronger teacher. On the
+# chat, instruction, refusal and Russian rows of the pool that is the only signal, and it keeps those
+# abilities close to the teacher's instead of leaving them to drift with the math updates.
+#
+# The balance of the two terms was not tuned. GRPO advantages are normalised per group to unit
+# spread, and the k1 advantage is in nats per token, clamped to 10. distillation_loss_coef is the
+# knob. If the teacher KL that scripts/verl/watch.py reports keeps rising, the task loss is
+# pulling the student away from the teacher. scripts/verl/run_distill.sh --arm opd runs the same
+# recipe without the task loss, as the other arm of an A/B.
+#
+# This file has no hydra block either, like distill_sft.yaml: distill_rl_sft_16k.yaml inherits it, and
+# hydra accepts hydra.searchpath only in the primary config. The launcher passes the search path as an
+# override anyway, so this file composes on its own as well.
+defaults:
+  - distill_sft
+  - _self_
+
+orbit:
+  prepare:
+    data:
+      # A dataset of its own, because the gold rows make it differ from distill_sft's.
+      name: distill_rl_mix__${orbit.prepare.model.preset}
+      # The pool and the gold paths below are placeholders that do not exist, on purpose. The
+      # mandatory marker ??? would not stop anything here, because the launcher reads an unset value
+      # as an empty one. Without gold rows the run would quietly be distill_sft under another name,
+      # and without the pool it would quietly drop the chat and instruction rows that protect MMLU
+      # and IFEval. With these paths the dataset build stops with "Input files do not exist" until
+      # both are overridden (scripts/verl/run_distill.sh passes them).
+      pool: /path/to/prompts.jsonl
+      # The gold rows, written PATH:DATA_SOURCE:FAMILY:COUNT. COUNT rows of each file are sampled
+      # after filtering, and the data tool stops when fewer are left. The recipe samples 6,454
+      # math rows and 3,300 code rows (scripts/verl/run_distill.sh). Next to the pool's prompts,
+      # about 32,000 when every cell fills, they make about a quarter of the training rows. Code
+      # statements are long, and every prompt above data.max_prompt_length (1088 tokens) is
+      # dropped, so check how many code problems survive before raising the code count. The math
+      # file is a pass-rate keep of math problems with short reference answers (instruction and
+      # response columns), the keep that scripts/verl/data/passrate/passrate.sh --kind math writes.
+      # The code file is the train.jsonl that orbit_verl.data.code_data writes.
+      # scripts/verl/data/README.md says how both are built.
+      gold:
+        - /path/to/math_keep.jsonl:orbit/math:math:6454
+        - /path/to/code_data/train.jsonl:orbit/code:code:3300
+  env:
+    # Off, so that the GRPO penalty of a looping answer reaches the looping tokens (see the header).
+    ORBIT_MASK_LOOP_TAIL: "false"
+
+algorithm:
+  # GRPO, as in orbit_base.yaml, written out because this variant depends on it. The advantage of an
+  # answer is its reward minus the mean reward of the 4 answers to the same prompt, divided by their
+  # standard deviation. Groups whose answers all score the same, such as every pool prompt, get 0.
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+
+distillation:
+  distillation_loss:
+    # The GRPO task loss on top of the distillation loss.
+    use_task_rewards: true
+    distillation_loss_coef: 1.0
+
+reward:
+  custom_reward_function:
+    reward_kwargs:
+      # A response cut by the length limit scores 0, whatever its answer, and so does a response
+      # that ends inside its thinking block (that rule is always on). Without the first rule, an
+      # answer that keeps writing after its result would earn as much as one that stops, and the
+      # task reward would teach the model not to finish.
+      truncated_score: 0.0
+      # Sandbox threads of each reward worker for the code rows. null means max(2, CPUs of the machine's
+      # quota // 8), which fits the 8 reward workers of orbit_base.yaml: together they run about
+      # one program per CPU.
+      code_threads: null

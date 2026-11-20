@@ -1,0 +1,351 @@
+# SFT v6. Same parts and recipe weights as v5. A dialog is dropped when its
+# longest reasoning chain is longer than max(floor, the percentile of that
+# stream). The percentile is over dialogs that have a chain, after the loop,
+# flood and echo filter. The chain is the trimmed text between <think> and
+# </think>, or reasoning_content on a tool turn. Markers are not counted, and
+# the length is tokens of that text alone. A dialog with no chain is kept.
+# --build scans each stream, prints p95 and the threshold, then tokenizes and
+# packs. Recipe weights match v5. Sampling weights change after --resolve,
+# because the packed token counts shrink.
+#
+# SFT v5: the mix of the SFT stage (configs/train/sft/sft_v5.yaml). The build
+# is written to ${ORBIT_DATA}/sft/v5.
+#
+# The token budget is split into three parts:
+#   smoltalk        0.70  the SmolTalk2 SFT splits and SmolTalk's own tool splits
+#   additions       0.15  the nine ru_sft_<role> streams, T-Wix, Aya (Russian
+#                         rows), GrandMaster and bench_train
+#   addition_tools  0.15  Dolci tool use and the two Nemotron tool-calling samples
+# With the weights below, this split puts tool-call data at about 6.8% of
+# assistant tokens and keeps think / no_think at about 48 / 52 of assistant
+# tokens.
+#
+# weight on a stream of the two recipe parts (smoltalk and addition_tools) is
+# a recipe weight in the sense of the SmolLM3 mixture: the share of that split
+# kept in one pass. --resolve turns it into a sampling weight,
+# fraction * packed_tokens, so a fraction of 1 means the same number of epochs
+# on every split. Most SmolTalk2 splits have weight 1, the whole split once per
+# pass, and that includes smoltalk_multilingual8_Qwen3_32B_think and
+# smoltalk_smollm3_smol_magpie_ultra_no_think. OpenThoughts3-think has 0.06,
+# because with the tool data in the mix that weight keeps the think / no_think
+# balance above. OpenThoughts3 no_think has 0.4 and OpenHermes 0.5.
+#
+# The additions part is packed: every stream in it is seen the same number of
+# times. Every part has an epoch_cap of 5. An overrun is printed by --resolve
+# and does not shrink the part's fraction.
+#
+# The nine ru_sft_<role> streams read Russian SFT chats that you supply: one
+# messages-format jsonl file per role in ${ORBIT_RAW}/russian_sft/
+# (data_prep/README.md gives the format).
+#
+# Both SystemChats splits are in the smoltalk part at recipe weight 1. These
+# dialogs exist to carry a system prompt, and this mix keeps it: a dialog that
+# has a system prompt keeps it as a system turn, and that turn is not a
+# training target. An optional rewrite table (build.py --rewrite-table FILE)
+# replaces the prompts it lists. Every other prompt stays verbatim.
+#
+# SmolTalk's own tool splits are in the smoltalk part at recipe weight 1, read
+# from the converted jsonl (not the original parquet). They are about 0.3% of
+# assistant tokens. Dolci and the two Nemotron samples are addition_tools.
+# Dolci is no_think and only 16% of its packed tokens are assistant tokens, so
+# its recipe weight is 1. The two Nemotron sets are think and much denser, so
+# each has weight 0.25: the same number of epochs as each other, a quarter of
+# Dolci's. Equal weights would make the think share rise once the part is
+# large enough to reach 7% of assistant tokens.
+#   smoltalk_hermes, smoltalk_xlam, dolci_tool_use: no_think
+#   smoltalk_smolagents, nemotron_agentic_v2, nemotron_post_v1: think
+#
+# The chat template is data_prep/tokenizer/templates/qwen35_system_tools.jinja,
+# in tokenizer_qwen3_4b_qwen35_tools. It is the Qwen3.5 think switch, a system
+# turn when the dialog has one, and Qwen3 JSON tool calls. There is no
+# last-user-query cut: every assistant turn keeps its chain.
+#   think:    prompt ends at <think>\n; the trace, \n</think>\n\n and the answer are trained.
+#   no_think: prompt includes <think>\n\n</think>\n\n; that tail has loss mask 0.
+#
+# The loop, flood and echo filter runs on every stream, including the tool
+# jsonl that data_prep/sft/prepare_tools.py writes.
+#
+# While --build is running, progress.json in out_root says how many streams
+# are tokenized. progress_current.json says how many dialogs of the running
+# stream are rendered. Read both with:
+#   python data_prep/sft/build.py --version data_prep/sft/versions/v6_smoltalk2.yaml --progress
+# During the chain scan the running file says "scanned" rather than "rendered".
+#
+# OpenThoughts3-think is the SmolTalk2 export. About 700k of its rows have no
+# </think>, a generation cutoff that is already present in
+# open-thoughts/OpenThoughts3-1.2M. prepare_messages drops a dialog with an
+# unclosed <think>, so those rows are left out.
+
+name: v6_smoltalk2
+seq_len: 32768
+token_budget: 10000000000
+min_resp_tokens: 2
+tokenizer: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_4b_qwen35_tools
+# A dataset system prompt stays its own system turn. The version names no
+# rewrite table (rewrite_table: FILE), so every system prompt stays verbatim.
+# build.py --rewrite-table FILE applies a table, and collect_system_prompts.py
+# writes one from the prompts of the mix; data_prep/README.md
+# describes both.
+system_turns: true
+out_root: ${ORBIT_DATA}/sft/v6
+
+# Drop a dialog whose longest chain is longer than max(floor, this percentile).
+chain_filter:
+  floor: 8192
+  percentile: 95
+
+parts:
+  - id: smoltalk
+    fraction: 0.70
+    weight_mode: recipe
+    epoch_cap: 5
+  - id: additions
+    fraction: 0.15
+    weight_mode: packed
+    epoch_cap: 5
+  - id: addition_tools
+    fraction: 0.15
+    weight_mode: recipe
+    epoch_cap: 5
+
+smoltalk_dir: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT
+
+streams:
+  - id: OpenThoughts3_1.2M_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/OpenThoughts3_1.2M_think-*.parquet
+    weight: 0.06
+    enable_thinking: true
+  - id: OpenThoughts3_1.2M_no_think_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/OpenThoughts3_1.2M_no_think_no_think-*.parquet
+    weight: 0.4
+    enable_thinking: false
+  - id: smoltalk_smollm3_smol_magpie_ultra_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_smol_magpie_ultra_no_think-*.parquet
+    weight: 1.0
+    enable_thinking: false
+  - id: OpenHermes_2.5_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/OpenHermes_2.5_no_think-*.parquet
+    weight: 0.5
+    enable_thinking: false
+  - id: smoltalk_multilingual8_Qwen3_32B_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_multilingual8_Qwen3_32B_think-*.parquet
+    weight: 1.0
+    enable_thinking: true
+  - id: smoltalk_multilingual_8languages_lang_5_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_multilingual_8languages_lang_5_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: Mixture_of_Thoughts_science_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/Mixture_of_Thoughts_science_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: multi_turn_reasoning_if_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/multi_turn_reasoning_if_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: s1k_1.1_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/s1k_1.1_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: tulu_3_sft_personas_instruction_following_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/tulu_3_sft_personas_instruction_following_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_smollm3_smol_summarize_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_smol_summarize_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_smollm3_smol_rewrite_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_smol_rewrite_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_smollm3_explore_instruct_rewriting_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_explore_instruct_rewriting_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_everyday_convs_reasoning_Qwen3_32B_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_everyday_convs_reasoning_Qwen3_32B_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: smoltalk_smollm3_everyday_conversations_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_everyday_conversations_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_smollm3_systemchats_30k_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_smollm3_systemchats_30k_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_systemchats_Qwen3_32B_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/smoltalk_systemchats_Qwen3_32B_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: aya_dataset_Qwen3_32B_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/aya_dataset_Qwen3_32B_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: table_gpt_Qwen3_32B_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/table_gpt_Qwen3_32B_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: table_gpt_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/table_gpt_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: LongAlign_64k_Qwen3_32B_yarn_131k_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/LongAlign_64k_Qwen3_32B_yarn_131k_think-*.parquet
+    weight: 1
+    enable_thinking: true
+  - id: LongAlign_64k_context_lang_annotated_lang_6_no_think
+    part: smoltalk
+    kind: smoltalk
+    path: ${ORBIT_RAW}/hf/HuggingFaceTB__smoltalk2/SFT/LongAlign_64k_context_lang_annotated_lang_6_no_think-*.parquet
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_hermes
+    part: smoltalk
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/smoltalk_hermes.jsonl
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_xlam
+    part: smoltalk
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/smoltalk_xlam.jsonl
+    weight: 1
+    enable_thinking: false
+  - id: smoltalk_smolagents
+    part: smoltalk
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/smoltalk_smolagents.jsonl
+    weight: 1
+    enable_thinking: true
+
+  - id: ru_sft_science
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/science.jsonl
+    enable_thinking: false
+  - id: ru_sft_math
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/math.jsonl
+    enable_thinking: false
+  - id: ru_sft_code
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/code.jsonl
+    enable_thinking: false
+  - id: ru_sft_dialog
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/dialog.jsonl
+    enable_thinking: false
+  - id: ru_sft_tasks
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/tasks.jsonl
+    enable_thinking: false
+  - id: ru_sft_creative
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/creative.jsonl
+    enable_thinking: false
+  - id: ru_sft_education
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/education.jsonl
+    enable_thinking: false
+  - id: ru_sft_qa_reasoning
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/qa_reasoning.jsonl
+    enable_thinking: false
+  - id: ru_sft_summarization
+    part: additions
+    kind: jsonl
+    path: ${ORBIT_RAW}/russian_sft/summarization.jsonl
+    enable_thinking: false
+  - id: twix
+    part: additions
+    kind: twix
+    path: ${ORBIT_RAW}/hf/t-tech__T-Wix/data/train-*.parquet
+    record_prompts: true
+    enable_thinking: auto
+  - id: aya_ru
+    part: additions
+    kind: aya
+    path: ${ORBIT_RAW}/hf/CohereForAI__aya_dataset/data/train-*.parquet
+    enable_thinking: false
+  - id: grandmaster
+    part: additions
+    kind: grandmaster
+    path: ${ORBIT_RAW}/hf/Vikhrmodels__GrandMaster-PRO-MAX/data/train-*.parquet
+    dedup_prompts: true
+    enable_thinking: auto
+  - id: bench_train
+    part: additions
+    kind: bench
+    raw_root: ${ORBIT_RAW}/hf
+    sources: [gsm8k, math, mmlu_aux, arc, hellaswag, winogrande, piqa, openbookqa, commonsense_qa, drop]
+    enable_thinking: false
+
+  - id: dolci_tool_use
+    part: addition_tools
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/dolci_tool_use.jsonl
+    weight: 1
+    enable_thinking: false
+  - id: nemotron_agentic_v2
+    part: addition_tools
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/nemotron_agentic_v2.jsonl
+    weight: 0.25
+    enable_thinking: true
+  - id: nemotron_post_v1
+    part: addition_tools
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/nemotron_post_v1.jsonl
+    weight: 0.25
+    enable_thinking: true

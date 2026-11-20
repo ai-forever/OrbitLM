@@ -1,0 +1,174 @@
+# RLTT from the SFT chat export of the release line (sft_v5_step7000), on gold math rows, gold code
+# rows or both, with no teacher. This is the release RL recipe. Every arm uses this file unchanged,
+# and the arms differ only in their gold rows. scripts/verl/run_rl.sh writes the overrides of each
+# arm and runs it.
+#
+# Why the distill builder, although nothing is distilled. prepare_data gives every row of a dataset
+# the same prompt mode. A mixed run needs sft_think for its math rows and sft_think_code for its code
+# rows in the same batch, and every validation set needs its own mode as well.
+# orbit_verl.data.distill_data writes such a dataset, because each of its rows names its own agent
+# loop. Here it reads gold inputs only and no prompt pool. Distillation stays off (verl's default), so
+# the loss is the RLTT loss of orbit_base.yaml with GRPO advantages from the task reward.
+#
+# The launcher prepares the model dir of the start export on its own. distill_sft.yaml shows the
+# manual command for an export that the automatic padding-row detection refuses.
+#
+# The gold inputs and the validation sets have no default. Their specs are written as in
+# distill_sft.yaml, and a spec with "#" in it is legal in hydra only inside quotes:
+#
+#   GOLD="[\"<math keep>:orbit/math:math:3800\",\"<code keep>:orbit/code:code\"]"
+#   VAL="[\"<math500>:orbit/math#think:sft_think\",\"<lcb val>:orbit/code#think:sft_think_code\"]"
+#   $PY <repo>/scripts/verl/launch.py --config rl_sft_mix --export <export> --model-name <name> \
+#       "orbit.prepare.data.gold=$GOLD" "orbit.prepare.data.val=$VAL" \
+#       orbit.prepare.data.name=<arm>__qwen3 orbit.run_name=<run>
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config   # hydra honors searchpath only in the primary config
+defaults:
+  - orbit_base
+  - _self_
+
+orbit:
+  # Only verl's default agent loop comes from this key. Every row of the dataset names its own agent
+  # loop, so math rows are rendered with sft_think and code rows with sft_think_code.
+  prompt_mode: sft_think
+  fits:
+    lineages: [release_qwen3, unknown]
+    why: >-
+      rl_sft_mix fits the SFT chat exports of the release line, whose prompt formats it uses. An
+      export whose bundled code names a padding row that is not zero in the weights is prepared
+      with --embedding-padding-idx none, which records the lineage as unknown.
+  rltt:
+    # The RL loss leaves the exit gate alone; docs/verl/DESIGN.md says why a trained gate drifts.
+    train_exit_gate: false
+    # The alarm fires when the expected exit step falls this many loops below its first-step value.
+    # The gate is not trained here, so a drift of the exit step is a side effect of the other
+    # updates, and 0.05 loops is already worth a look. orbit_base's 0.3 would fire much later.
+    exit_drift_alarm: 0.05
+  prepare:
+    model:
+      max_position_embeddings: null    # keep the export's 32768
+    data:
+      # The distill builder writes one prompt mode per row; prepare_data writes one mode only.
+      builder: distill
+      # Not read by the distill builder. It replaces the mandatory marker of orbit_base.yaml, so that
+      # a resolved config does not show a missing value that nobody has to set.
+      src: null
+      # No prompt pool: every train row has a gold answer, so every row gets a task reward.
+      pool: null
+      # The gold rows, written PATH:DATA_SOURCE:FAMILY[:COUNT], and the validation sets, written
+      # PATH:DATA_SOURCE:PROMPT_MODE[:LIMIT]. The launcher reads the mandatory marker as an empty
+      # list, and an empty list of either kind stops the launch with a message that names the key.
+      gold: ???
+      val: ???
+      # Every gold row thinks. With 1.0 the seeded draw of the thinking mode never picks no_think.
+      think_share: 1.0
+      # The seed of the shuffle that samples COUNT rows of a gold input, and of the final row order.
+      seed: 0
+      # Each arm passes a name of its own. A dataset that was built from other inputs under the same
+      # name does not match its manifest, so the launcher refuses it instead of reusing it.
+      name: rl_sft_mix__${orbit.prepare.model.preset}
+
+data:
+  # 64 prompts x 8 answers = 512 answers per step, and one optimizer step per batch.
+  train_batch_size: 64
+  # Code statements are long: they hold the story, the input and output format, the constraints and
+  # the samples. The dataset build drops every prompt above this length, math and code alike.
+  max_prompt_length: 2048
+  # The thinking budget of the SFT eval. A response that reaches the limit scores 0, which pushes the
+  # model to finish within it.
+  max_response_length: 16384
+  # The seed of verl's train sampler. verl's default is null, which leaves the order to the default
+  # seed of torch's generator; a seed in the config makes the order part of the recipe.
+  seed: 0
+
+actor_rollout_ref:
+  actor:
+    ppo_mini_batch_size: ${data.train_batch_size}   # one optimizer step per batch
+    ppo_epochs: 1
+    # k3 KL to the start checkpoint on the final loop, as in orbit_base.yaml.
+    use_kl_loss: true
+    kl_loss_type: low_var_kl
+    kl_loss_coef: 1.0e-3
+    entropy_coeff: 0.0
+    # The mean over each response's tokens, then over the responses (RLTT paper, Eq. 6).
+    loss_agg_mode: seq-mean-token-mean
+    policy_loss:
+      loss_mode: rltt_exit
+    # At least max_prompt_length + max_response_length = 18,432 tokens.
+    ppo_max_token_len_per_gpu: 18432
+    optim:
+      lr: 1.0e-6
+      lr_scheduler_type: constant
+      # 10 warmup steps, written as a count. orbit_base's ratio of 0.1 would give 20 steps at the
+      # 200-step cap, and the warmup would move if a later launch changed total_training_steps.
+      lr_warmup_steps: 10
+      weight_decay: 0.1
+      betas: [0.9, 0.99]
+      clip_grad: 0.1
+  ref:
+    log_prob_max_token_len_per_gpu: 18432
+  rollout:
+    n: 8
+    temperature: 0.9
+    top_p: 1.0
+    top_k: -1
+    max_model_len: null                # the prepared dir's 32768
+    log_prob_max_token_len_per_gpu: 18432
+    # Long thinking answers need a large vLLM KV cache, because each of the 4 loops keeps its own.
+    # 0.8 is the value for a 141 GB GPU. On 80 GB GPUs use 0.7 (run_rl.sh --gpu-mem), so that the
+    # actor keeps room for its 18K-token micro-batches.
+    gpu_memory_utilization: 0.8
+    # The fp8 KV cache of orbit_base.yaml, written out because the rollout correction below exists
+    # for it: fp8 moves the sampling distribution away from the trainer's (orbit_base.yaml says how far).
+    engine_kwargs:
+      vllm:
+        kv_cache_dtype: fp8
+    # Validation samples like the SFT eval's think preset, one answer per problem. orbit_base.yaml
+    # validates greedily, and greedy answers loop more than the SFT eval's, so the step-0 numbers
+    # would not reproduce the start checkpoint's eval scores.
+    val_kwargs:
+      temperature: 0.6
+      top_p: 0.95
+      top_k: 20
+      n: 1
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: true
+  use_kl_in_reward: false
+  # Token-level importance weights between the vLLM sampler and the trainer, capped at 2.0. The fp8
+  # cache makes the two distributions differ more than a bf16 cache does, and the RLTT loss multiplies
+  # its per-token loss by these weights (orbit_verl.rltt.loss).
+  rollout_correction:
+    rollout_is: token
+    rollout_is_threshold: 2.0
+    rollout_rs: null
+    bypass_mode: false
+
+reward:
+  custom_reward_function:
+    reward_kwargs:
+      # A response cut by the length limit scores 0, whatever its answer, and so does a response that
+      # ends inside its thinking block (that rule is always on).
+      truncated_score: 0.0
+      # Sandbox threads of each reward worker for the code rows. null means max(2, CPUs of the machine's
+      # quota // 8), which fits the 8 reward workers of orbit_base.yaml: together they run about
+      # one program per CPU.
+      code_threads: null
+
+trainer:
+  # A cap, not a target. Run scripts/verl/watch.py --rl next to the run and pick the checkpoint
+  # before its first alarm (docs/verl/README.md). Every checkpoint is kept for that choice.
+  total_training_steps: 200
+  # Validation before training and every 10 steps. The launcher skips the validation before training
+  # on a resume only when the resumed step's validation is already logged (prepare.resume_validation).
+  test_freq: 10
+  val_before_train: true
+  # A checkpoint every 5 steps, so a run that is stopped loses at most 5 steps. All are kept, so the
+  # best step survives a later decline.
+  save_freq: 5
+  max_actor_ckpt_to_keep: null
+  # Every rollout and every validation answer is kept as jsonl for the watcher and later analysis.
+  rollout_data_dir: ${orbit.run_dir}/rollouts
+  validation_data_dir: ${orbit.run_dir}/val_generations

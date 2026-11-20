@@ -1,0 +1,6 @@
+# The release no-think format for code problems. The user turn is the one of sft_think_code.yaml:
+# "<question>\n\n<instruction>", with the instruction that the code rows of nvidia AceReason-1.1-SFT
+# put after every problem. The assistant turn starts with the empty, closed thinking block of
+# sft_no_think.yaml, so the model writes its ```python block right away.
+# The template goes through str.format, so literal braces would need doubling; this text has none.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\n\nWrite Python code to solve the problem. Please place the solution code in the following format:\n```python\n# Your solution code here\n```<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"

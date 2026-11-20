@@ -1,0 +1,54 @@
+# The evaluation environment of the in-training evaluation: the interpreter that eval_python names.
+# The trainer never imports these packages; it starts every evaluation process with that interpreter.
+# The versions are those of the environment that ran the release's evaluations, except numpy (below).
+# eval/in_training/README.md has the whole procedure:
+#   $ORBIT_EVAL_PYTHON -m pip install -r requirements/eval.txt
+#
+# lm-eval itself is not installed from here. It goes into a new, empty folder of its own, which
+# eval_harness_path names, together with the RULER generator's wonderwords:
+#   $ORBIT_EVAL_PYTHON -m pip install --no-deps --no-compile --target $ORBIT_LM_EVAL lm_eval==0.4.13 wonderwords==3.0.1
+# That install skips lm-eval's dependencies, so the ones the suites use are pinned below.
+
+# Inference engine. vLLM 0.22.0 pins its own torch.
+vllm==0.22.0
+torch==2.11.0
+transformers==4.57.6
+tokenizers==0.22.2
+safetensors==0.7.0
+huggingface_hub==0.36.1
+
+# lm-eval 0.4.13's own requirements.
+datasets==4.3.0
+evaluate==0.4.6
+# vLLM's mistral-common requires numpy below 2.4 on Python 3.12. 2.3.5 is also the numpy of the verl
+# environment, which runs vLLM 0.26.
+numpy==2.3.5
+jinja2==3.1.6
+pytablewriter==1.2.1
+rouge_score==0.1.2
+sacrebleu==2.6.0
+scikit-learn==1.8.0
+sqlitedict==2.1.0
+dill==0.4.0
+word2number==1.1
+more-itertools==11.0.1
+typing_extensions==4.15.0
+tqdm==4.67.1
+# lm-eval's hf extra, which its vLLM backend imports.
+accelerate==1.12.0
+peft==0.18.1
+
+# MATH and the chat math benchmarks: lm-eval's math extra.
+sympy==1.14.0
+antlr4-python3-runtime==4.11.0
+math-verify==0.9.0
+latex2sympy2_extended==1.11.0
+
+# RULER: lm-eval's ruler extra (wonderwords goes into the lm-eval folder, see above).
+nltk==3.9.1
+scipy==1.17.1
+
+# IFEval in the SFT suite: lm-eval's ifeval extra. eval/in_training/requirements-sft-eval.txt has the
+# same two packages with hashes, for an environment that you would rather not change.
+langdetect==1.0.9
+immutabledict==4.3.1

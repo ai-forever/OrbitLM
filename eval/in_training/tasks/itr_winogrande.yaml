@@ -1,0 +1,23 @@
+# Winogrande 5-shot, the stock lm-eval task with the dataset under its current hub id (datasets 4.3
+# rejects the legacy id "winogrande"). The shot count is pinned here, so the task needs no
+# --num_fewshot and can share a process with the other pinned tasks.
+tag:
+  - in_training_eval
+task: itr_winogrande
+dataset_path: allenai/winogrande
+dataset_name: winogrande_xl
+output_type: multiple_choice
+training_split: train
+validation_split: validation
+doc_to_text: !function winogrande_local.doc_to_text
+doc_to_target: !function winogrande_local.doc_to_target
+doc_to_choice: !function winogrande_local.doc_to_choice
+should_decontaminate: true
+doc_to_decontamination_query: sentence
+num_fewshot: 5
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

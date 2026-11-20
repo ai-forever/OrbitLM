@@ -1,0 +1,94 @@
+# The in-training evaluation suite of SFT runs (think and no_think in one model, Qwen3.5-style prefill).
+#
+# train.py runs it every eval_every steps when the SFT config sets eval_suite to this file
+# (eval/in_training/README.md). The SFT stage (stage 5,
+# configs/train/sft/sft_v5.yaml) sets eval_every 1000 (a multiple of save_every), eval_at_start true
+# and eval_at_end true. Its step 0 is the base export, which has never seen ChatML: its scores are the
+# first point of the curves, and its responses loop to the budget, which also tests the timeouts.
+# eval_tokenizer_source must point at a tokenizer folder whose chat template renders the prompts of
+# the prompt contract; the startup check refuses one that does not. The SFT stage trains with the
+# tools tokenizer and evaluates with the think tokenizer. The suite's prompts have no system turn,
+# and for such prompts the two templates give the same text and ids.
+#
+# Every chat benchmark is 0-shot through the chat template, with sampled answers. The scored think and
+# no_think benchmarks give the accuracy curves; the chat probe (OASST2 validation prompts and trivial
+# prompts in English and Russian) and the no-prefill probe (think_open) feed the gates. mmlu, hellaswag,
+# humaneval and mbpp run in the base protocol, without a template, under the base scalar names, so that
+# the SFT curves continue those of the 32K stage (base.yaml).
+#
+#   think, 16,384 tokens   math500_think, gsm8k_think, ifeval_think, mgsm_ru_think; chatprobe_think 8,192
+#   no_think, 4,096 tokens math500_nothink, gsm8k_nothink, ifeval_nothink, mgsm_ru_nothink,
+#                          mmlu_redux_nothink, chatprobe_nothink
+#   no_prefill, 64 tokens  think_open (gate G3)
+#   base protocol          mmlu (5-shot), hellaswag (10-shot), humaneval (0-shot), mbpp (3-shot)
+#
+# The think shards are sized so that, on 64 GPUs, every think process has a rank of its own: the planner
+# adds the time of one response at the budget to each chat unit, and a second process behind a think
+# process would start only after that tail. tests/train/test_train_eval_chat.py checks it.
+tasks_dir: ../tasks
+entry: ../run_lm_eval.py
+
+# The fixed cost of one evaluation process, measured for 64 simultaneous starts in the 32K stage.
+process_startup_seconds: 190
+
+chat:
+  # The SFT packer (data_prep/sft/blocks.py) ends every dialogue with <|endoftext|>. Document masking
+  # makes that token the first one of the next dialogue's attention segment, so every dialogue except
+  # the first of its packed block starts with it. Most dialogues are not the first of their block, so
+  # the prompts start with it too. eval/in_training/README.md says more.
+  lead_eos: true
+  # Sampling of the Qwen3 report (section 4.6), which the Qwen3-1.7B reference numbers were measured
+  # with. No seed: one seed for every request would give every prompt the same random numbers.
+  think:
+    temperature: 0.6
+    top_p: 0.95
+    top_k: 20
+    presence_penalty: 0.0
+    max_gen_toks: 16384
+    # Stops a response whose tail repeats a pattern of 64-128 tokens 16 times, which catches every
+    # exact loop with a period up to 128 after 1,024-2,048 repeated tokens. Such a response counts as
+    # a loop and scores 0, as it would at the budget, but it no longer holds the pause for minutes.
+    repetition_detection: {min_pattern_size: 64, max_pattern_size: 128, min_count: 16}
+  no_think:
+    temperature: 0.7
+    top_p: 0.8
+    top_k: 20
+    presence_penalty: 1.5
+    max_gen_toks: 4096
+  no_prefill:
+    temperature: 0.6
+    top_p: 0.95
+    top_k: 20
+    max_gen_toks: 64
+  # The preliminary thresholds of the gates (eval/in_training/README.md). A pass flag
+  # is an early warning, not a go/no-go decision. g6_markers_max is a placeholder until it is
+  # calibrated on a reference model's no_think answers with the same detector.
+  gates:
+    g2_max: 0.005
+    g3_min: 0.98
+    g4_min: 0.98
+    g5_max: 0.05
+    g6_tags_max: 0.005
+    g6_markers_max: 0.6
+    g6_len_p50_max: 1000
+    g7_math500_min: 0.258
+    g7_gsm8k_min: 0.364
+    g11_min: 0.98
+
+benchmarks:
+  math500_think: {shards: 18}
+  gsm8k_think: {shards: 15}
+  ifeval_think: {shards: 6}
+  mgsm_ru_think: {shards: 4}
+  chatprobe_think: {shards: 3, max_gen_toks: 8192}
+  math500_nothink: {shards: 2}
+  gsm8k_nothink: {shards: 2}
+  ifeval_nothink: {}
+  mgsm_ru_nothink: {}
+  mmlu_redux_nothink: {shards: 2}
+  chatprobe_nothink: {}
+  think_open: {}
+  mmlu: {}
+  hellaswag: {shards: 4}
+  humaneval: {}
+  mbpp: {}

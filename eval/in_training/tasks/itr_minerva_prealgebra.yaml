@@ -1,0 +1,3 @@
+include: itr_minerva_algebra.yaml
+dataset_name: prealgebra
+task: itr_minerva_prealgebra

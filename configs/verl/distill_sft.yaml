@@ -1,0 +1,262 @@
+# On-policy distillation (OPD) of the SFT chat export of the release line (sft_v5_step7000: Qwen3
+# vocabulary, 32K context) from a Qwen3-family teacher, on verl 0.9.1's built-in distillation. The
+# release recipe is distill_rl_sft_16k.yaml, which inherits this file through distill_rl_sft.yaml;
+# docs/verl/README.md has the data, the launch commands and the monitoring.
+#
+# What one step does. The student samples 4 answers to each of 132 prompts at temperature 1.0. A
+# teacher, served by vLLM on GPUs of its own, scores every token of every answer. The per-token
+# advantage is log p_teacher - log p_student of the sampled token: verl's k1 loss used as a policy
+# gradient, as in the on-policy distillation literature. No gold answer is needed, so chat,
+# instructions, Russian and both thinking modes get a training signal, not only math.
+#
+# The prompts come from a mixed pool in which every row has its own prompt mode
+# (orbit_verl.data.distill_data builds the dataset). Math and code prompts carry the instructions
+# of sft_think and sft_think_code, every other prompt is sent as the user wrote it, and about half
+# of the rows think while the other half answer without thinking. Pool rows have the data source
+# orbit/none. Their reward is always 0 and the task loss is off, so only the teacher trains them.
+#
+# The launcher prepares the model dir of the SFT export itself, and the recipes' start export needs
+# nothing more. Only an export whose bundled code names a padding row that is not zero in the weights
+# is refused by that step. Prepare such an export once by hand, with the padding row given as none
+# (orbit_verl.model.prepare_model says why):
+#
+#   PYTHONPATH=<repo>/src $PY -m orbit_verl.model.prepare_model --export <export> \
+#       --out-dir <runs_root>/models/<name> --preset qwen3 --embedding-padding-idx none --check
+#
+# Three values have no default, and the launcher refuses to start until all three are given. The
+# validation specs hold "#", which hydra accepts only inside quotes:
+#
+#   M500=<math500.jsonl>
+#   CODE_VAL=<code_data out>/val.jsonl
+#   VAL="[\"$M500:orbit/math#think:sft_think\",\"$M500:orbit/math#no_think:sft_no_think\","
+#   VAL+="\"$CODE_VAL:orbit/code#think:sft_think_code:200\"]"
+#   $PY <repo>/scripts/verl/launch.py --config distill_sft --export <export> --model-name <name> \
+#       distillation.teacher_models.teacher_model.model_path=<teacher> \
+#       orbit.prepare.data.pool=<pool.jsonl> "orbit.prepare.data.val=$VAL"
+#
+# <teacher> is the absolute path of a local model dir. Before anything starts, the launcher checks
+# that path, that the teacher's tokenizer gives our ids the same tokens, that its head has Qwen3's
+# 151,936 rows, and the settings below that distillation depends on (orbit_verl.distill.preflight
+# explains each check).
+#
+# This file has no hydra block, unlike the other experiments. distill_rl_sft.yaml inherits this
+# file, and hydra accepts hydra.searchpath only in the primary config. The launcher passes the
+# search path as an override anyway, so this file composes on its own as well.
+defaults:
+  - orbit_base
+  - _self_
+
+orbit:
+  # Only the default agent loop of verl comes from this key. Every row of the dataset names its own
+  # agent loop, so the mode of each row is the one the data tool drew for it.
+  prompt_mode: sft_think
+  fits:
+    lineages: [release_qwen3, unknown]
+    why: >-
+      Distillation from a Qwen3 teacher needs the Qwen3 vocabulary, so it fits only the release line.
+      An SFT export whose bundled code names a padding row that is not zero in the weights is
+      prepared with --embedding-padding-idx none, which records the lineage as unknown.
+  # How the teacher is served and what it sees. The launcher reads these keys after composing
+  # (orbit_verl.launch.config.finish_distillation and orbit_verl.distill.teacher).
+  distill:
+    # Each node keeps this many GPUs for the teacher and gives the rest to the student, so one
+    # 8-GPU node runs 6 student GPUs and 2 teacher GPUs. Qwen3-8B to Qwen3-32B each fit on one
+    # H200, and the teacher only prefills, so its work hides behind the student's rollout.
+    teacher_gpus_per_node: 2
+    # Above 0, the teacher gets this many whole nodes instead, and the student keeps whole nodes.
+    # That is the faster layout for a 2-node job: set it to 1 there.
+    teacher_nodes: 0
+    # Our prompts start with <|endoftext|>, which a Qwen3 teacher's own template never has. On the
+    # CPU it moved Qwen3-8B's per-token log-probs by 0.3-1.1 nats, so the teacher gets the
+    # sequence without it, and its rows are shifted back to line up with the student's tokens.
+    teacher_strip_prefix: [151643]
+  prepare:
+    model:
+      max_position_embeddings: null    # keep the export's 32768
+    data:
+      # The distill builder writes the mixed dataset; prepare_data writes one prompt mode only.
+      builder: distill
+      # Not read by the distill builder. It replaces the mandatory marker of orbit_base.yaml, so
+      # that a resolved config does not show a missing value that nobody has to set.
+      src: null
+      # The prompt pool: one jsonl row per prompt with id, prompt, mode, domain, lang and source
+      # (orbit_verl.data.distill_data describes the fields).
+      pool: ???
+      # No gold rows by default: the task loss is off, so gold answers would only add accuracy
+      # numbers on training prompts. distill_rl_sft.yaml adds them for its task reward.
+      gold: []
+      # The validation sets, written PATH:DATA_SOURCE:PROMPT_MODE[:LIMIT]. The recommended list is
+      # MATH-500 once with thinking and once without, and 200 code problems with thinking, so that
+      # code, a goal of the run, has an in-run signal as well:
+      #   - <math500.jsonl>:orbit/math#think:sft_think
+      #   - <math500.jsonl>:orbit/math#no_think:sft_no_think
+      #   - <code_data out>/val.jsonl:orbit/code#think:sft_think_code:200
+      # The code file is the val.jsonl that orbit_verl.data.code_data writes, and its answers run
+      # in the sandbox of the code reward. verl reports validation metrics per data_source, so the
+      # "#" tags keep the sets apart, and the part before "#" picks the check. The header shows the
+      # override. The value stays mandatory, because verl fails at start-up without a val set.
+      val: ???
+      # The share of think rows among the pool rows that do not fix their mode, and the seed of
+      # that draw and of the shuffle.
+      think_share: 0.5
+      seed: 0
+      name: distill_mix__${orbit.prepare.model.preset}
+  # Both switches travel as env vars because the agent loop reads them in every Ray worker.
+  env:
+    # The loop-tail mask (orbit_verl.data.loops). When a response is cut by the length limit while
+    # it repeats itself, the loss leaves out its tokens from 16 tokens after the start of the first
+    # repeated copy to the end. The teacher sees the repeated text in its own context and tends to
+    # predict each further copy with high confidence, so without the mask the advantage could
+    # reward the student for looping. The first 16 tokens of the repeat stay in the loss, because
+    # that is where the teacher pushes against starting it.
+    ORBIT_MASK_LOOP_TAIL: "true"
+    # No-think answers (the sft_no_think, sft_no_think_code and sft_chat_no_think modes) stop at 4K
+    # new tokens. Without a cap, a looping no-think answer runs to 8K and holds
+    # up the end of the rollout and the teacher. The cap applies to validation too, so the no-think
+    # MATH-500 numbers are measured at 4K, like the SFT eval. null turns the cap off.
+    ORBIT_NO_THINK_MAX_TOKENS: "4096"
+
+data:
+  # 132 prompts x 4 answers = 528 answers per step, one optimizer step per batch. A batch of 128
+  # does not work on the default layout: verl asserts that the answers of a mini-batch divide evenly
+  # among the student's GPUs (train_mini_batch in verl/workers/engine_workers.py), and 512 answers
+  # do not divide among 6. 528 divides among 4, 6, 8, 12 and 16 GPUs: one node with 2 or 4 teacher
+  # GPUs, and two nodes with a teacher node of their own or with 2 teacher GPUs on each. Keep
+  # train_batch_size x rollout.n divisible by the student's GPU count when changing either. The
+  # launcher refuses a layout where it does not divide and names the nearest batch size that does.
+  train_batch_size: 132
+  # Chat, instruction and math prompts of single-turn dialogs. Longer prompts are dropped by the
+  # data tool, which counts tokens the way the rollout does.
+  # The pool's raw prompts are at most 1024 tokens. The template, and the instruction of math and code rows,
+  # add up to about 40 more, so the rendered prompt gets 1088 tokens of room.
+  max_prompt_length: 1088
+  # Thinking is cut at 8K here. Distillation of small students was stable at 3-7K tokens and fell
+  # apart at 10-15K in the literature. The release recipe, distill_rl_sft_16k.yaml, raises the limit
+  # to 16K and adds a thinking budget. A cut answer still gets a teacher signal on every token it
+  # has. No-think answers are capped at 4K by orbit.env.ORBIT_NO_THINK_MAX_TOKENS above. The SFT
+  # eval still measures checkpoints at 16K.
+  max_response_length: 8192
+
+actor_rollout_ref:
+  actor:
+    # The teacher is the regulariser here, so there is no KL to the start model. That also drops
+    # the reference model and its log-prob pass.
+    #
+    # An A/B against an RL arm with the same KL needs two overrides, not one. verl adds the KL term
+    # inside the task policy loss, and with use_task_rewards=false it sets that whole loss to 0,
+    # the KL term included (trainer/distillation/losses.py). So a KL arm sets use_kl_loss=true and
+    # distillation.distillation_loss.use_task_rewards=true. The pool rows are orbit/none and score
+    # 0 in every answer, so their GRPO advantage is exactly 0, and the task loss adds only the KL.
+    # The launcher refuses use_kl_loss=true alone, and warns about the extra cost of the pair.
+    use_kl_loss: false
+    # The mean over all tokens of the batch. seq-mean-token-mean would give a 300-token no-think
+    # answer the same weight as an 8K thinking trace, and the per-token teacher signal is meant to
+    # weigh every token alike.
+    loss_agg_mode: token-mean
+    policy_loss:
+      # Stock final-loop policy loss, the loop that vLLM samples from. With distillation on, verl's
+      # actor loss is distillation_ppo_loss, which calls verl's stock ppo_loss. Our engine replaces
+      # only a plain ppo_loss by the RLTT loss, so the rltt_* modes would reach the raising stub on
+      # the first update, and the launcher refuses them.
+      loss_mode: vanilla
+    # At least max_prompt_length + max_response_length = 9280. The vanilla path builds the full
+    # logits of every token in a micro-batch, so this budget also bounds that buffer (16,384 tokens x
+    # 151,936 ids in bf16 is about 5 GB). Lower it on an OOM, but not below 9280.
+    ppo_max_token_len_per_gpu: 16384
+    optim:
+      # The values of orbit_base.yaml, written out because the distillation recipe fixes them on
+      # its own: lr 1e-6, a linear warmup over the first 10% of the steps (20 of 200), then
+      # constant.
+      lr: 1.0e-6
+      lr_scheduler_type: constant
+      lr_warmup_steps: -1
+      lr_warmup_steps_ratio: 0.1
+  rollout:
+    # No group baseline is needed for the distillation advantage, so 4 answers per prompt are
+    # enough. The hybrid variant uses the same 4 as its GRPO group.
+    n: 4
+    # verl divides the student's training logits by this temperature, while the teacher always
+    # scores at 1.0. Any other value makes the advantage compare two different distributions, and
+    # the launcher refuses it.
+    temperature: 1.0
+    top_p: 1.0
+    top_k: -1
+    max_model_len: null                # the prepared dir's 32768
+    log_prob_max_token_len_per_gpu: 16384
+    # The student keeps orbit_base.yaml's fp8 KV cache (engine_kwargs.vllm.kv_cache_dtype). vLLM
+    # sleeps while the actor trains, so most of the GPU is free for the rollout cache.
+    gpu_memory_utilization: 0.8
+    agent:
+      # The teacher sees the prompt without the leading <|endoftext|> only through this manager
+      # (orbit_verl.distill.teacher). verl's agent block in rollout.yaml lacks the key, so it is
+      # declared here; on a command line it would need a "+".
+      agent_loop_manager_class: orbit_verl.distill.teacher.OrbitLMAgentLoopManagerTQ
+    # Validation samples like the SFT eval's think preset, one answer per problem. verl has one
+    # setting for every validation row, so the no-think set uses it as well. verl never calls the
+    # teacher during validation.
+    val_kwargs:
+      temperature: 0.6
+      top_p: 0.95
+      top_k: 20
+      n: 1
+
+distillation:
+  enabled: true
+  # One teacher by default, which verl uses for every row whatever this key says. Per-mode teachers
+  # (one for think rows, one for no-think rows) need teacher_route here and two teacher entries;
+  # verl's distillation docs show the layout.
+  teacher_key: data_source
+  distillation_loss:
+    # k1 = log p_student - log p_teacher on the sampled token, used as the negative advantage of a
+    # PPO-clip policy loss. Backpropagated directly, k1 has no gradient that depends on the
+    # teacher, which is why verl refuses k1 without the policy gradient.
+    loss_mode: k1
+    use_policy_gradient: true
+    # Pool rows have no gold answer, so the task loss stays off. distill_rl_sft.yaml turns it on,
+    # and so does a KL arm (see use_kl_loss above).
+    use_task_rewards: false
+    distillation_loss_coef: 1.0
+    # The per-token k1 is clamped to +-10 nats. A student token that the teacher finds nearly
+    # impossible, such as one of our 12 code tokens that the teacher never trained, then costs a
+    # bounded penalty instead of an unbounded one.
+    loss_max_clamp: 10.0
+    log_prob_min_clamp: null
+  # The teacher pool, distillation.nnodes and distillation.n_gpus_per_node, is not set here. The
+  # launcher derives it from orbit.distill and the job's GPUs and refuses an override of it.
+  teacher_models:
+    teacher_model:
+      model_path: ???                  # the absolute path of a local Qwen3-family model dir
+      inference:
+        # Qwen3-8B, 14B and 32B each fit on one H200, and replicas with one GPU each give the most
+        # prefill throughput. verl starts as many replicas as the teacher pool has GPUs.
+        tensor_model_parallel_size: 1
+        # The teacher GPUs run nothing else, and verl never puts the teacher to sleep.
+        gpu_memory_utilization: 0.85
+        enforce_eager: false
+        max_num_batched_tokens: 16384
+        # null is filled by the launcher with the student's prompt + response + 1 tokens, the room
+        # verl demands. Left null, vLLM would size the KV cache for the teacher's own 40K or 262K.
+        max_model_len: null
+        # vLLM 0.26 skips the prefix cache for prompt-logprob requests, so caching only costs memory.
+        enable_prefix_caching: false
+        # The teacher keeps a bf16 KV cache. fp8 is a setting of the student's rollout, where its
+        # 2.7e-3 nats of noise per token were measured; nothing measured it for the teacher's scores.
+        engine_kwargs:
+          vllm:
+            kv_cache_dtype: auto
+
+trainer:
+  # 200 steps x 132 prompts are 26,400 prompts. That is about 0.8 of one pass over a full pool of
+  # about 32,000 prompts, and about 0.65 of one pass once the hybrid recipe adds its 9,754 gold rows.
+  total_training_steps: 200
+  # 10 checkpoints of about 22 GB each, about 220 GB in total. All are kept, so the best step
+  # survives a later decline.
+  save_freq: 20
+  # Validation on the val sets before training and every 20 steps. Step 0 shows the start model in
+  # this run's format and at its 8K limit, which is the baseline of the watcher's stop rules.
+  test_freq: 20
+  val_before_train: true
+  # Every rollout and every validation answer is kept as jsonl. scripts/verl/watch.py reads
+  # both, together with metrics.jsonl.
+  rollout_data_dir: ${orbit.run_dir}/rollouts
+  validation_data_dir: ${orbit.run_dir}/val_generations

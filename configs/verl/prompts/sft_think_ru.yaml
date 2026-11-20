@@ -1,0 +1,7 @@
+# The think format of sft_think.yaml for a Russian math problem: the instruction after the question is
+# the Russian one that the SFT eval gives MGSM-ru (chat_local.MATH_INSTRUCTION_RU), word for word. With the
+# English instruction, the teacher Qwen3-8B thought in English on about half of the Russian problems of
+# the distillation pool. Distillation pulls the student towards the teacher's tokens, so the student's
+# Russian thinking would drift towards English as well.
+# Braces are doubled because the template goes through str.format.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\nРассуждай пошагово и запиши окончательный ответ в \\boxed{{}}.<|im_end|>\n<|im_start|>assistant\n<think>\n"

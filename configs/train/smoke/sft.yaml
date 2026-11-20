@@ -1,0 +1,88 @@
+# Smoke test of SFT on one GPU: init_from_hf of the 32K export, SFT v5 data, 3 steps, no evaluation.
+#
+# Parent: configs/train/sft/sft_v5.yaml. This file is a copy of it with these keys changed
+# (tests/train/test_release_configs.py checks that nothing else differs): run_name and its
+# dump_nonfinite_batch folder, auto_resume false, tokens_per_step 32768 (one sequence of 32768,
+# grad_accum 1 on one GPU), two of the parent's streams, max_steps 3, no eval_* keys (the
+# in-training evaluation is off), and clearml_enabled false written out. The two streams are the
+# OpenThoughts3 think stream and T-Wix, so the smoke covers think rendering and Russian chats and
+# needs only public data. The run saves a checkpoint after step 3, which
+# python -m orbit.export --chat-export turns into an HF folder.
+# The log must show "document_masking=1 boundary_token_id=151643" and "labels_premasked=1".
+save_dir: ${ORBIT_RUNS}
+run_name: smoke_sft
+auto_resume: false
+init_from_hf: ${ORBIT_EXPORTS}/stage4_32k_step4769
+resume_from: null
+
+detect_nan: true
+dump_nonfinite_batch: ${ORBIT_RUNS}/nan_dumps/smoke_sft
+
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+tokenizer_config: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_4b_qwen35_tools/tokenizer_config.json
+
+lr: 1.0e-5
+lr_scheduler: warmup_cosine
+lr_warmup_steps: 100
+lr_warmup_start_lr: null
+lr_warmup_start_factor: 0.1
+lr_warmup_start_step: auto
+lr_cosine_steps: auto
+lr_min: 1.0e-6
+lr_min_factor: 0.1
+beta: 0.15
+seq_len: 32768
+total_ut_steps: 4
+rope_theta: 4000000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+document_masking: true
+
+tokens_per_step: 32768
+token_budget: 14680064000
+
+batch_size: 1
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+predownload: null
+cache_limit: null
+seed: 46
+model_init_seed: 271828
+
+labels_premasked: true
+stage1_token_dtype: uint32
+stage1_root: ${ORBIT_DATA}/sft/v5
+stage1_mixing_mode: mosaic_random
+stage1_epoch_samples: 1000000000
+stage1_shuffle: true
+stage1_shuffle_seed: 47
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+
+stage1_streams:
+  OpenThoughts3_1.2M_think: OpenThoughts3_1.2M_think
+  twix: twix
+
+stage1_dataset_proportions:
+  OpenThoughts3_1.2M_think: 0.10761178
+  twix: 0.09851000
+
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+save_every: 500
+tensorboard_root: ${ORBIT_RUNS}/tensorboard
+
+max_steps: 3
+clearml_enabled: false

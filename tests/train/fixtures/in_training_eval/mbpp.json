@@ -1,0 +1,16 @@
+{
+ "_source": "lm-eval 0.4.13 on vLLM through the callback's command, the final 32K-stage export on the full test split; group_subtasks, n-samples and the itr_mbpp metrics of its results file",
+ "group_subtasks": {},
+ "n-samples": {
+  "itr_mbpp": {
+   "effective": 500,
+   "original": 500
+  }
+ },
+ "results": {
+  "itr_mbpp": {
+   "pass@1,create_test": 0.368,
+   "pass@1_stderr,create_test": 0.02158898256835354
+  }
+ }
+}

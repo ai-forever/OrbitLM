@@ -1,0 +1,20 @@
+{
+ "_source": "lm-eval results of a OrbitLM pretraining checkpoint (HF backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_gsm8k": []
+ },
+ "n-samples": {
+  "itr_gsm8k": {
+   "effective": 1319,
+   "original": 1319
+  }
+ },
+ "results": {
+  "itr_gsm8k": {
+   "exact_match,flexible-extract": 0.32752084912812734,
+   "exact_match,strict-match": 0.32676269901440486,
+   "exact_match_stderr,flexible-extract": 0.012927102210426485,
+   "exact_match_stderr,strict-match": 0.01291940810865642
+  }
+ }
+}

@@ -1,0 +1,94 @@
+{
+ "_source": "lm-eval results of a 16K-stage OrbitLM checkpoint (vLLM backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_minerva": [
+   "itr_minerva_algebra",
+   "itr_minerva_counting_and_prob",
+   "itr_minerva_geometry",
+   "itr_minerva_intermediate_algebra",
+   "itr_minerva_num_theory",
+   "itr_minerva_prealgebra",
+   "itr_minerva_precalc"
+  ]
+ },
+ "n-samples": {
+  "itr_minerva_algebra": {
+   "effective": 1187,
+   "original": 1187
+  },
+  "itr_minerva_counting_and_prob": {
+   "effective": 474,
+   "original": 474
+  },
+  "itr_minerva_geometry": {
+   "effective": 479,
+   "original": 479
+  },
+  "itr_minerva_intermediate_algebra": {
+   "effective": 903,
+   "original": 903
+  },
+  "itr_minerva_num_theory": {
+   "effective": 540,
+   "original": 540
+  },
+  "itr_minerva_prealgebra": {
+   "effective": 871,
+   "original": 871
+  },
+  "itr_minerva_precalc": {
+   "effective": 546,
+   "original": 546
+  }
+ },
+ "results": {
+  "itr_minerva": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.2858,
+   "math_verify_stderr,none": 0.006104989903655383
+  },
+  "itr_minerva_algebra": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.43892165122156696,
+   "math_verify_stderr,none": 0.01440996456194963
+  },
+  "itr_minerva_counting_and_prob": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.20253164556962025,
+   "math_verify_stderr,none": 0.018478750616296693
+  },
+  "itr_minerva_geometry": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.23799582463465555,
+   "math_verify_stderr,none": 0.01947822580537991
+  },
+  "itr_minerva_intermediate_algebra": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.13399778516057587,
+   "math_verify_stderr,none": 0.01134240218325625
+  },
+  "itr_minerva_num_theory": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.20925925925925926,
+   "math_verify_stderr,none": 0.017521247195630783
+  },
+  "itr_minerva_prealgebra": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.4454649827784156,
+   "math_verify_stderr,none": 0.016850455565199426
+  },
+  "itr_minerva_precalc": {
+   "exact_match,none": 0.0,
+   "exact_match_stderr,none": 0.0,
+   "math_verify,none": 0.1391941391941392,
+   "math_verify_stderr,none": 0.014827394112308746
+  }
+ }
+}

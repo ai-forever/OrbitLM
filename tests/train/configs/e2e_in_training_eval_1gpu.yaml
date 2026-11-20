@@ -1,0 +1,91 @@
+# One-GPU end-to-end check of the in-training evaluation through train.py.
+# It runs two optimizer steps of the Qwen3-lineage model at seq 16384, saves a checkpoint after
+# each, and evaluates after each with the tiny smoke suite. The scores go to TensorBoard; set
+# clearml_enabled to true and pass --clearml-env to send them to a new ClearML task as well.
+#
+# The paths that depend on the machine are null here and are given on the command line
+# (--save-dir, --tensorboard-root, --init-from-hf, --tokenizer-config, --stage1-root, --eval-python,
+# --eval-harness-path, --eval-cache-dir); eval/in_training/README.md has the full command.
+# The FA3 kernel comes from ORBIT_ATTN_KERNEL_PATH.
+save_dir: null
+run_name: in_training_eval_e2e
+auto_resume: false
+init_from_hf: null
+resume_from: null
+
+# Relative paths resolve against the directory of this file.
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+# The Qwen3 tokenizer config with EOS 151643, in a folder with the tokenizer files.
+tokenizer_config: null
+
+lr: 1e-5
+lr_scheduler: constant
+lr_warmup_steps: 0
+
+beta: 0.15
+seq_len: 16384
+total_ut_steps: 4
+rope_theta: 1000000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+document_masking: true
+
+tokens_per_step: 16384
+max_steps: 2
+token_budget: 32768
+
+batch_size: 1
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+seed: 44
+model_init_seed: 271828
+# The streams root must hold the nemotron_cc and ru_wiki streams of 16,385-token samples.
+stage1_root: null
+stage1_epoch_samples: 100000
+stage1_mixing_mode: mosaic_random
+stage1_shuffle: true
+stage1_shuffle_seed: 44
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+stage1_token_dtype: uint32
+
+stage1_streams:
+  nemotron_cc: nemotron_cc
+  ru_wiki: ru_wiki
+
+stage1_dataset_proportions:
+  nemotron_cc: 0.5
+  ru_wiki: 0.5
+
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+# A checkpoint at every step, because every evaluated step must have one.
+save_every: 1
+tensorboard_root: null
+
+# ClearML is off; when it is switched on, every run gets a new task.
+clearml_enabled: false
+clearml_project: OrbitLM/tests
+clearml_resume_task: false
+
+# The in-training evaluation, after each of the two steps.
+eval_every: 1
+eval_at_start: false
+eval_suite: ../../../eval/in_training/suites/smoke.yaml
+eval_weights: raw
+eval_gpu_memory_utilization: 0.75
+eval_timeout_minutes: 15
+eval_total_timeout_minutes: 60
+eval_keep_exports: true

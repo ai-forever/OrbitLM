@@ -1,0 +1,6 @@
+# The release think format for code problems. It is sft_think.yaml with another user turn:
+# "<question>\n\n<instruction>", where the instruction is the one that the code rows of nvidia
+# AceReason-1.1-SFT put after every problem, copied word for word. The model answers with its program
+# in a ```python block after </think>, and the code reward runs the last such block.
+# The template goes through str.format, so literal braces would need doubling; this text has none.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\n\nWrite Python code to solve the problem. Please place the solution code in the following format:\n```python\n# Your solution code here\n```<|im_end|>\n<|im_start|>assistant\n<think>\n"

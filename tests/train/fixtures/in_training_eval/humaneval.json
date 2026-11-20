@@ -1,0 +1,18 @@
+{
+ "_source": "lm-eval results of a OrbitLM pretraining checkpoint (HF backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_humaneval": []
+ },
+ "n-samples": {
+  "itr_humaneval": {
+   "effective": 164,
+   "original": 164
+  }
+ },
+ "results": {
+  "itr_humaneval": {
+   "pass@1,create_test": 0.10365853658536585,
+   "pass@1_stderr,create_test": 0.023875115311878525
+  }
+ }
+}

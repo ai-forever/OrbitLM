@@ -1,0 +1,25 @@
+# The chat probe of the SFT evaluation: English and Russian chat prompts (OASST2 validation roots) and
+# trivial prompts (chat_probe_trivial.jsonl). It has no correct answers; it feeds the detectors of the
+# gates G2, G3, G4, G6 and G11 with prompts that are not math. "answered" is only whether an answer part
+# exists.
+tag:
+  - in_training_eval_chat
+task: itr_chat_probe
+dataset_path: ""
+dataset_name: ""
+output_type: generate_until
+test_split: test
+custom_dataset: !function chat_local.load_chat_probe
+doc_to_text: !function chat_local.plain_prompt
+doc_to_target: itr_gold
+process_results: !function chat_local.process_probe
+generation_kwargs:
+  until: []
+  max_gen_toks: 4096
+num_fewshot: 0
+metric_list:
+  - metric: answered
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

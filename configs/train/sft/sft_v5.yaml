@@ -1,0 +1,194 @@
+# SFT v5 of OrbitLM (stage 5): 32K, response-only loss, document masking, 7000 steps from the final
+# 32K export, on chat, reasoning, Russian, tool-use and agent data.
+#
+# Mix and render: data_prep/sft/versions/v5_smoltalk2.yaml. The version splits the token budget into
+# three parts. SmolTalk2 gets 0.70: its SFT splits, both SystemChats splits, and its hermes, xLAM
+# and SmolAgents tool splits. The Russian and benchmark additions get 0.15: the ru_sft_* streams,
+# T-Wix, Aya-ru, GrandMaster and bench_train, each seen the same number of times. The tool data
+# gets 0.15: dolci_tool_use, nemotron_agentic_v2 and nemotron_post_v1. Inside the SmolTalk2 part,
+# the OpenThoughts3 think stream has recipe weight 0.06, so that think and no_think stay at about
+# 48 / 52 of the assistant tokens; tool-call data is about 6.8% of them.
+# Every proportion below is a sampling weight. A SmolTalk recipe weight is converted to
+# recipe_weight * packed_tokens, so a recipe weight of 1 means the same number of epochs on every
+# split. enable_thinking on each stream of the version selects think or no_think.
+# The ru_sft_* streams are Russian SFT chats that you supply, one stream per role (science, math,
+# code, dialog, tasks, creative, education, qa_reasoning, summarization); data_prep/README.md
+# describes their format.
+# The tokenizer is the tools variant of the Qwen3.5-style chat template. data_prep/sft renders the
+# shards with it, and its template decides where the loss mask starts. The in-training evaluation
+# renders its prompts with the think variant (eval_tokenizer_source below).
+#
+# The chat export of step 7000 (python -m orbit.export --chat-export with the tools tokenizer,
+# written to ${ORBIT_EXPORTS}/sft_v5_step7000) starts the distillation and RL stages.
+#
+# A step is 64 sequences of 32768 tokens (batch_size 1 on 64 GPUs, or grad_accum 2 on 32).
+# 14,680,064,000 tokens are 7,000 steps of 2,097,152 tokens, and the cosine runs over all of them.
+# The version file plans 10B tokens; the run trained this larger budget on purpose, and the epochs
+# in the proportion comments below are those of this budget.
+# A run must log document_masking=1 boundary_token_id=151643.
+# The ${...} variables are described in src/orbit/README.md.
+save_dir: ${ORBIT_RUNS}
+run_name: orbit_sft_v5
+auto_resume: true
+init_from_hf: ${ORBIT_EXPORTS}/stage4_32k_step4769
+resume_from: null
+
+detect_nan: true
+dump_nonfinite_batch: ${ORBIT_RUNS}/nan_dumps/orbit_sft_v5
+
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+tokenizer_config: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_4b_qwen35_tools/tokenizer_config.json
+
+lr: 1.0e-5
+lr_scheduler: warmup_cosine
+lr_warmup_steps: 100
+lr_warmup_start_lr: null
+lr_warmup_start_factor: 0.1
+lr_warmup_start_step: auto
+lr_cosine_steps: auto
+lr_min: 1.0e-6
+lr_min_factor: 0.1
+beta: 0.15
+seq_len: 32768
+total_ut_steps: 4
+rope_theta: 4000000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+document_masking: true
+
+tokens_per_step: 2097152
+token_budget: 14680064000
+
+batch_size: 1
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+predownload: null
+cache_limit: null
+seed: 46
+model_init_seed: 271828
+
+labels_premasked: true
+stage1_token_dtype: uint32
+stage1_root: ${ORBIT_DATA}/sft/v5
+stage1_mixing_mode: mosaic_random
+stage1_epoch_samples: 1000000000
+stage1_shuffle: true
+stage1_shuffle_seed: 47
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+
+stage1_streams:
+  OpenThoughts3_1.2M_think: OpenThoughts3_1.2M_think
+  OpenThoughts3_1.2M_no_think_no_think: OpenThoughts3_1.2M_no_think_no_think
+  smoltalk_smollm3_smol_magpie_ultra_no_think: smoltalk_smollm3_smol_magpie_ultra_no_think
+  OpenHermes_2.5_no_think: OpenHermes_2.5_no_think
+  smoltalk_multilingual8_Qwen3_32B_think: smoltalk_multilingual8_Qwen3_32B_think
+  smoltalk_multilingual_8languages_lang_5_no_think: smoltalk_multilingual_8languages_lang_5_no_think
+  Mixture_of_Thoughts_science_no_think: Mixture_of_Thoughts_science_no_think
+  multi_turn_reasoning_if_think: multi_turn_reasoning_if_think
+  s1k_1.1_think: s1k_1.1_think
+  tulu_3_sft_personas_instruction_following_no_think: tulu_3_sft_personas_instruction_following_no_think
+  smoltalk_smollm3_smol_summarize_no_think: smoltalk_smollm3_smol_summarize_no_think
+  smoltalk_smollm3_smol_rewrite_no_think: smoltalk_smollm3_smol_rewrite_no_think
+  smoltalk_smollm3_explore_instruct_rewriting_no_think: smoltalk_smollm3_explore_instruct_rewriting_no_think
+  smoltalk_everyday_convs_reasoning_Qwen3_32B_think: smoltalk_everyday_convs_reasoning_Qwen3_32B_think
+  smoltalk_smollm3_everyday_conversations_no_think: smoltalk_smollm3_everyday_conversations_no_think
+  smoltalk_smollm3_systemchats_30k_no_think: smoltalk_smollm3_systemchats_30k_no_think
+  smoltalk_systemchats_Qwen3_32B_think: smoltalk_systemchats_Qwen3_32B_think
+  aya_dataset_Qwen3_32B_think: aya_dataset_Qwen3_32B_think
+  table_gpt_Qwen3_32B_think: table_gpt_Qwen3_32B_think
+  table_gpt_no_think: table_gpt_no_think
+  LongAlign_64k_Qwen3_32B_yarn_131k_think: LongAlign_64k_Qwen3_32B_yarn_131k_think
+  LongAlign_64k_context_lang_annotated_lang_6_no_think: LongAlign_64k_context_lang_annotated_lang_6_no_think
+  smoltalk_hermes: smoltalk_hermes
+  smoltalk_xlam: smoltalk_xlam
+  smoltalk_smolagents: smoltalk_smolagents
+  ru_sft_science: ru_sft_science
+  ru_sft_math: ru_sft_math
+  ru_sft_code: ru_sft_code
+  ru_sft_dialog: ru_sft_dialog
+  ru_sft_tasks: ru_sft_tasks
+  ru_sft_creative: ru_sft_creative
+  ru_sft_education: ru_sft_education
+  ru_sft_qa_reasoning: ru_sft_qa_reasoning
+  ru_sft_summarization: ru_sft_summarization
+  twix: twix
+  aya_ru: aya_ru
+  grandmaster: grandmaster
+  bench_train: bench_train
+  dolci_tool_use: dolci_tool_use
+  nemotron_agentic_v2: nemotron_agentic_v2
+  nemotron_post_v1: nemotron_post_v1
+
+stage1_dataset_proportions:
+  OpenThoughts3_1.2M_think: 0.10761178  # epochs=0.244 packed_tokens=6462964332
+  OpenThoughts3_1.2M_no_think_no_think: 0.03952844  # epochs=1.630 packed_tokens=356100723
+  smoltalk_smollm3_smol_magpie_ultra_no_think: 0.16933354  # epochs=4.074 packed_tokens=610191549
+  OpenHermes_2.5_no_think: 0.01866934  # epochs=2.037 packed_tokens=134549514
+  smoltalk_multilingual8_Qwen3_32B_think: 0.14097033  # epochs=4.074 packed_tokens=507985038
+  smoltalk_multilingual_8languages_lang_5_no_think: 0.04163999  # epochs=4.074 packed_tokens=150049251
+  Mixture_of_Thoughts_science_no_think: 0.00876631  # epochs=4.074 packed_tokens=31589316
+  multi_turn_reasoning_if_think: 0.02678091  # epochs=4.074 packed_tokens=96504705
+  s1k_1.1_think: 0.00289179  # epochs=4.074 packed_tokens=10420542
+  tulu_3_sft_personas_instruction_following_no_think: 0.00329191  # epochs=4.074 packed_tokens=11862378
+  smoltalk_smollm3_smol_summarize_no_think: 0.01341319  # epochs=4.074 packed_tokens=48334275
+  smoltalk_smollm3_smol_rewrite_no_think: 0.00493787  # epochs=4.074 packed_tokens=17793567
+  smoltalk_smollm3_explore_instruct_rewriting_no_think: 0.00077296  # epochs=4.074 packed_tokens=2785365
+  smoltalk_everyday_convs_reasoning_Qwen3_32B_think: 0.00074568  # epochs=4.074 packed_tokens=2687058
+  smoltalk_smollm3_everyday_conversations_no_think: 0.00011822  # epochs=4.074 packed_tokens=425997
+  smoltalk_smollm3_systemchats_30k_no_think: 0.00574721  # epochs=4.074 packed_tokens=20710008
+  smoltalk_systemchats_Qwen3_32B_think: 0.00770235  # epochs=4.074 packed_tokens=27755343
+  aya_dataset_Qwen3_32B_think: 0.00413763  # epochs=4.074 packed_tokens=14909895
+  table_gpt_Qwen3_32B_think: 0.00682936  # epochs=4.074 packed_tokens=24609519
+  table_gpt_no_think: 0.00322826  # epochs=4.074 packed_tokens=11632995
+  LongAlign_64k_Qwen3_32B_yarn_131k_think: 0.03508344  # epochs=4.074 packed_tokens=126422802
+  LongAlign_64k_context_lang_annotated_lang_6_no_think: 0.02679000  # epochs=4.074 packed_tokens=96537474
+  smoltalk_hermes: 0.00290089  # epochs=4.074 packed_tokens=10453311
+  smoltalk_xlam: 0.00850260  # epochs=4.074 packed_tokens=30639015
+  smoltalk_smolagents: 0.01960599  # epochs=4.074 packed_tokens=70649964
+  ru_sft_science: 0.01473631  # epochs=1.774 packed_tokens=121966218
+  ru_sft_math: 0.00161141  # epochs=1.774 packed_tokens=13336983
+  ru_sft_code: 0.00153223  # epochs=1.774 packed_tokens=12681603
+  ru_sft_dialog: 0.00364251  # epochs=1.774 packed_tokens=30147480
+  ru_sft_tasks: 0.00041176  # epochs=1.774 packed_tokens=3407976
+  ru_sft_creative: 0.00236763  # epochs=1.774 packed_tokens=19595862
+  ru_sft_education: 0.00041176  # epochs=1.774 packed_tokens=3407976
+  ru_sft_qa_reasoning: 0.00331389  # epochs=1.774 packed_tokens=27427653
+  ru_sft_summarization: 0.00101357  # epochs=1.774 packed_tokens=8388864
+  twix: 0.09851000  # epochs=1.774 packed_tokens=815325489
+  aya_ru: 0.00001188  # epochs=1.774 packed_tokens=98307
+  grandmaster: 0.01293882  # epochs=1.774 packed_tokens=107089092
+  bench_train: 0.00949823  # epochs=1.774 packed_tokens=78612831
+  dolci_tool_use: 0.09917120  # epochs=2.831 packed_tokens=514309455
+  nemotron_agentic_v2: 0.02454479  # epochs=0.708 packed_tokens=509164722
+  nemotron_post_v1: 0.02628400  # epochs=0.708 packed_tokens=545243391
+
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+save_every: 500
+tensorboard_root: ${ORBIT_RUNS}/tensorboard
+
+# In-training evaluation with the SFT (chat) suite (eval/in_training/README.md) before the first
+# step, every 1000 steps and at the end.
+eval_every: 1000
+eval_at_start: true
+eval_at_end: true
+eval_suite: ../../../eval/in_training/suites/sft.yaml
+eval_python: ${ORBIT_EVAL_PYTHON}
+eval_harness_path: ${ORBIT_LM_EVAL}
+eval_cache_dir: ${ORBIT_EVAL_CACHE}
+eval_tokenizer_source: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_4b_qwen35_think
+eval_weights: raw
+eval_gpu_memory_utilization: 0.75

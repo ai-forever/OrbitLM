@@ -1,0 +1,26 @@
+# A tiny version of base.yaml for a quick GPU check of the in-training evaluation: every benchmark
+# with a handful of documents. The scores mean nothing; the run shows that every task loads,
+# generates, scores and logs its scores. tests/train/configs/e2e_in_training_eval_1gpu.yaml runs it.
+# Paths are relative to this file.
+#
+# It also exercises the two paths that base.yaml needs and a plain limit would skip: HellaSwag in
+# shards (passed to lm-eval as --samples), and RULER at 32K, which raises the evaluated window to
+# 32768 + 256 tokens. vLLM runs with CUDA graphs and torch.compile as in base.yaml, so the second
+# evaluation of a run shows whether the compile cache carries over.
+tasks_dir: ../tasks
+entry: ../run_lm_eval.py
+process_startup_seconds: 110
+
+benchmarks:
+  math: {limit: 4}
+  gsm8k: {limit: 4}
+  mmlu: {limit: 2}
+  mmlu_pro: {limit: 2}
+  hellaswag: {shards: 2, limit: 8}
+  winogrande: {limit: 4}
+  cruxeval: {limit: 4}
+  humaneval: {limit: 4}
+  mbpp: {limit: 4}
+  ruler:
+    lengths: [32768]
+    num_samples: 4

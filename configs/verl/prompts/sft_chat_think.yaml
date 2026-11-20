@@ -1,0 +1,6 @@
+# The release think format for prompts that are not math problems: instructions, chat and refusals.
+# It is sft_think.yaml without the math instruction, so the user turn is exactly the question.
+# <|endoftext|> comes first, as packing put it before most SFT dialogs, and the assistant turn is
+# opened with "<think>\n", so the response starts inside the thinking block.
+# The template goes through str.format, so literal braces would need doubling; this text has none.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n<think>\n"

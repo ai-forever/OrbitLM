@@ -1,0 +1,25 @@
+# GSM8K for SFT checkpoints: 0-shot chat with the Qwen3 card's format instruction, scored by math_verify
+# on the text after the last </think> against the number after "####" (chat_local.py).
+tag:
+  - in_training_eval_chat
+task: itr_chat_gsm8k
+dataset_path: openai/gsm8k
+dataset_name: main
+dataset_kwargs:
+  revision: 740312add88f781978c0658806c59bc2815b9866
+output_type: generate_until
+test_split: test
+process_docs: !function chat_local.process_gsm8k
+doc_to_text: !function chat_local.gsm8k_prompt
+doc_to_target: itr_gold
+process_results: !function chat_local.process_math
+generation_kwargs:
+  until: []
+  max_gen_toks: 4096
+num_fewshot: 0
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

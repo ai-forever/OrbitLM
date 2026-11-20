@@ -1,0 +1,38 @@
+[
+ {
+  "repo": "Nanbeige/ToolMind",
+  "revision": "8020ed1c03c367e4eb720ac3828ab4b0b95d8baf",
+  "patterns": ["open_datasets/*.jsonl"],
+  "note": "v7 to v9: prepare_tools.py --only toolmind_open"
+ },
+ {
+  "repo": "nvidia/AceReason-1.1-SFT",
+  "revision": "5ac692742de9f2481f8274d022dc78d5fc96c249",
+  "patterns": ["sft_data.parquet/*.arrow"],
+  "note": "v8 and v9: prepare_acereason.py samples 200k code rows from it; about 92 GB"
+ },
+ {
+  "repo": "KodCode/KodCode-V1-SFT-R1",
+  "revision": "26c8a11c800d71b6c4bafe12a92c9090ef0b6214",
+  "patterns": ["data/train-*.parquet"],
+  "note": "v8 and v9: prepare_code.py"
+ },
+ {
+  "repo": "bigcode/self-oss-instruct-sc2-exec-filter-50k",
+  "revision": "356bb069eee815daa6e23e9a282eeefe1490ad44",
+  "patterns": ["data/train-*.parquet"],
+  "note": "v8 and v9: prepare_code.py"
+ },
+ {
+  "repo": "m-a-p/Code-Feedback",
+  "revision": "f411b16a97c910ac9acf8b0d0948e340aa77cc34",
+  "patterns": ["Code-Feedback.jsonl"],
+  "note": "v8 and v9: prepare_code.py"
+ },
+ {
+  "repo": "birdsql/bird23-train-filtered",
+  "revision": "4068469807b255fcfc0816bdd520946fe460d256",
+  "patterns": ["data/train-*.jsonl", "train_column_meaning.json"],
+  "note": "v8 and v9: prepare_code.py"
+ }
+]

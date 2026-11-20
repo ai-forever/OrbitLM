@@ -1,0 +1,72 @@
+# A tiny version of sft.yaml for a quick GPU check of the SFT (chat) evaluation: every benchmark of
+# sft.yaml on a handful of documents, with the real budgets and the same chat section. The scores mean
+# nothing; the run shows that every path works: the chat template and the token contract in all three
+# prompt modes, the sidecar and the records, the gates, both protocols in one pause, shards of a chat
+# benchmark (--samples), and the reported scalar names. A model that has never seen ChatML loops to the
+# budget, which takes about 4 minutes per process at 16K and tests the timeouts. Paths are relative to
+# this file.
+tasks_dir: ../tasks
+entry: ../run_lm_eval.py
+process_startup_seconds: 190
+
+chat:
+  # The SFT packer (data_prep/sft/blocks.py) ends every dialogue with <|endoftext|>. Document masking
+  # makes that token the first one of the next dialogue's attention segment, so every dialogue except
+  # the first of its packed block starts with it. Most dialogues are not the first of their block, so
+  # the prompts start with it too. eval/in_training/README.md says more.
+  lead_eos: true
+  # Sampling of the Qwen3 report (section 4.6), which the Qwen3-1.7B reference numbers were measured
+  # with. No seed: one seed for every request would give every prompt the same random numbers.
+  think:
+    temperature: 0.6
+    top_p: 0.95
+    top_k: 20
+    presence_penalty: 0.0
+    max_gen_toks: 16384
+    # Stops a response whose tail repeats a pattern of 64-128 tokens 16 times, which catches every
+    # exact loop with a period up to 128 after 1,024-2,048 repeated tokens. Such a response counts as
+    # a loop and scores 0, as it would at the budget, but it no longer holds the pause for minutes.
+    repetition_detection: {min_pattern_size: 64, max_pattern_size: 128, min_count: 16}
+  no_think:
+    temperature: 0.7
+    top_p: 0.8
+    top_k: 20
+    presence_penalty: 1.5
+    max_gen_toks: 4096
+  no_prefill:
+    temperature: 0.6
+    top_p: 0.95
+    top_k: 20
+    max_gen_toks: 64
+  # The preliminary thresholds of the gates (eval/in_training/README.md). A pass flag
+  # is an early warning, not a go/no-go decision. g6_markers_max is a placeholder until it is
+  # calibrated on a reference model's no_think answers with the same detector.
+  gates:
+    g2_max: 0.005
+    g3_min: 0.98
+    g4_min: 0.98
+    g5_max: 0.05
+    g6_tags_max: 0.005
+    g6_markers_max: 0.6
+    g6_len_p50_max: 1000
+    g7_math500_min: 0.258
+    g7_gsm8k_min: 0.364
+    g11_min: 0.98
+
+benchmarks:
+  math500_think: {limit: 4}
+  gsm8k_think: {shards: 2, limit: 8}
+  ifeval_think: {limit: 4}
+  mgsm_ru_think: {limit: 4}
+  chatprobe_think: {limit: 4, max_gen_toks: 8192}
+  math500_nothink: {limit: 4}
+  gsm8k_nothink: {limit: 4}
+  ifeval_nothink: {limit: 4}
+  mgsm_ru_nothink: {limit: 4}
+  mmlu_redux_nothink: {limit: 4}
+  chatprobe_nothink: {limit: 4}
+  think_open: {limit: 8}
+  mmlu: {limit: 2}
+  hellaswag: {shards: 2, limit: 8}
+  humaneval: {limit: 4}
+  mbpp: {limit: 4}

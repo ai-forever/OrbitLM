@@ -1,0 +1,39 @@
+# CRUXEval-O 2-shot, greedy with one sample per problem. The stock task draws 10 samples at
+# temperature 0.2, and executing those 16,000 programs one by one took about 26 minutes per
+# checkpoint; one greedy sample cuts that tenfold. pass@1 of one greedy sample is not
+# directly comparable with the stock 10-sample pass@1. The filter that turns a generation into
+# the program to execute comes from cruxeval_local.py, because the stock one of lm-eval 0.4.13
+# strips the quotes from string answers and fails them.
+tag:
+  - in_training_eval
+task: itr_cruxeval_output
+dataset_path: cruxeval-org/cruxeval
+unsafe_code: true
+output_type: generate_until
+test_split: test
+repeats: 1
+metric_list:
+  - metric: !function cruxeval_local.pass_at_k
+    aggregation: mean
+    higher_is_better: true
+    k: [1]
+description: "You are given a Python function and an assertion containing an input to the function. Complete the assertion with a literal (no unsimplified expressions, no function calls) containing the output when executing the provided code on the given input, even if the function is incorrect or incomplete. Do NOT output any extra information. Provide the full assertion with the correct output in [ANSWER] and [/ANSWER] tags, following the examples.\n"
+doc_to_text: "[PYTHON]\n{{code}}\nassert f({{input}}) == ??\n[/PYTHON]"
+doc_to_target: "{% if is_fewshot is defined %}\n[ANSWER]\nassert f({{input}}) == {{output}}\n[/ANSWER]{% else %}[ANSWER]{% endif %}"
+generation_kwargs:
+  until:
+    - "[/ANSWER]"
+  max_gen_toks: 1024
+  do_sample: false
+  temperature: 0.0
+filter_list:
+  - name: "create_test"
+    filter:
+      - function: "custom"
+        filter_fn: !function cruxeval_local.build_predictions_output
+num_fewshot: 2
+fewshot_config:
+  sampler: first_n
+  samples: !function cruxeval_local.list_fewshot_samples_output
+metadata:
+  version: 1.0

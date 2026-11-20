@@ -1,0 +1,141 @@
+{
+ "_source": "lm-eval results of a 16K-stage OrbitLM checkpoint (vLLM backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "mmlu_pro": [
+   "mmlu_pro_biology",
+   "mmlu_pro_business",
+   "mmlu_pro_chemistry",
+   "mmlu_pro_computer_science",
+   "mmlu_pro_economics",
+   "mmlu_pro_engineering",
+   "mmlu_pro_health",
+   "mmlu_pro_history",
+   "mmlu_pro_law",
+   "mmlu_pro_math",
+   "mmlu_pro_other",
+   "mmlu_pro_philosophy",
+   "mmlu_pro_physics",
+   "mmlu_pro_psychology"
+  ]
+ },
+ "n-samples": {
+  "mmlu_pro_biology": {
+   "effective": 717,
+   "original": 717
+  },
+  "mmlu_pro_business": {
+   "effective": 789,
+   "original": 789
+  },
+  "mmlu_pro_chemistry": {
+   "effective": 1132,
+   "original": 1132
+  },
+  "mmlu_pro_computer_science": {
+   "effective": 410,
+   "original": 410
+  },
+  "mmlu_pro_economics": {
+   "effective": 844,
+   "original": 844
+  },
+  "mmlu_pro_engineering": {
+   "effective": 969,
+   "original": 969
+  },
+  "mmlu_pro_health": {
+   "effective": 818,
+   "original": 818
+  },
+  "mmlu_pro_history": {
+   "effective": 381,
+   "original": 381
+  },
+  "mmlu_pro_law": {
+   "effective": 1101,
+   "original": 1101
+  },
+  "mmlu_pro_math": {
+   "effective": 1351,
+   "original": 1351
+  },
+  "mmlu_pro_other": {
+   "effective": 924,
+   "original": 924
+  },
+  "mmlu_pro_philosophy": {
+   "effective": 499,
+   "original": 499
+  },
+  "mmlu_pro_physics": {
+   "effective": 1299,
+   "original": 1299
+  },
+  "mmlu_pro_psychology": {
+   "effective": 798,
+   "original": 798
+  }
+ },
+ "results": {
+  "mmlu_pro": {
+   "exact_match,custom-extract": 0.26903257978723405,
+   "exact_match_stderr,custom-extract": 0.003991617547123449
+  },
+  "mmlu_pro_biology": {
+   "exact_match,custom-extract": 0.4198047419804742,
+   "exact_match_stderr,custom-extract": 0.018443963168527054
+  },
+  "mmlu_pro_business": {
+   "exact_match,custom-extract": 0.2674271229404309,
+   "exact_match_stderr,custom-extract": 0.015767579700591637
+  },
+  "mmlu_pro_chemistry": {
+   "exact_match,custom-extract": 0.21731448763250882,
+   "exact_match_stderr,custom-extract": 0.012263281152729174
+  },
+  "mmlu_pro_computer_science": {
+   "exact_match,custom-extract": 0.3097560975609756,
+   "exact_match_stderr,custom-extract": 0.02286386080726763
+  },
+  "mmlu_pro_economics": {
+   "exact_match,custom-extract": 0.32701421800947866,
+   "exact_match_stderr,custom-extract": 0.016157437138552496
+  },
+  "mmlu_pro_engineering": {
+   "exact_match,custom-extract": 0.24664602683178535,
+   "exact_match_stderr,custom-extract": 0.013854757375790675
+  },
+  "mmlu_pro_health": {
+   "exact_match,custom-extract": 0.24816625916870416,
+   "exact_match_stderr,custom-extract": 0.01511197564211008
+  },
+  "mmlu_pro_history": {
+   "exact_match,custom-extract": 0.2099737532808399,
+   "exact_match_stderr,custom-extract": 0.020893512983069046
+  },
+  "mmlu_pro_law": {
+   "exact_match,custom-extract": 0.1271571298819255,
+   "exact_match_stderr,custom-extract": 0.010044817487916965
+  },
+  "mmlu_pro_math": {
+   "exact_match,custom-extract": 0.30866025166543304,
+   "exact_match_stderr,custom-extract": 0.012572430175741564
+  },
+  "mmlu_pro_other": {
+   "exact_match,custom-extract": 0.24025974025974026,
+   "exact_match_stderr,custom-extract": 0.014062813640467624
+  },
+  "mmlu_pro_philosophy": {
+   "exact_match,custom-extract": 0.22444889779559118,
+   "exact_match_stderr,custom-extract": 0.01869602485904402
+  },
+  "mmlu_pro_physics": {
+   "exact_match,custom-extract": 0.27251732101616627,
+   "exact_match_stderr,custom-extract": 0.012358650138787822
+  },
+  "mmlu_pro_psychology": {
+   "exact_match,custom-extract": 0.38721804511278196,
+   "exact_match_stderr,custom-extract": 0.01725446974083567
+  }
+ }
+}

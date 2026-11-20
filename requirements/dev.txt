@@ -1,0 +1,7 @@
+# The extra packages that the CPU tests of the trainer need (tests/train/README.md). Install them on
+# top of requirements/train.txt:
+#
+#   python -m pip install -r requirements/train.txt -r requirements/dev.txt
+#
+# The version is the one of the environment that the CPU tests ran in.
+pytest==9.1.1

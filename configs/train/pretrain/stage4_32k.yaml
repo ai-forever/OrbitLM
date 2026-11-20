@@ -1,0 +1,171 @@
+# Stage 4 of OrbitLM: context extension to 32K, one phase of 20B tokens on 64 GPUs.
+#
+# Start: the base HF export of the final 16K checkpoint (stage 3, step 47684), loaded model-only
+# through init_from_hf. The run_name is new, so auto_resume finds no latest.txt on the first
+# start and uses init_from_hf; after a restart it resumes this run's own checkpoints.
+#
+# Data: ctx32k/streams, built by data_prep/long_context (stage_32k.py lists the streams) and mixed
+# by mix.py into 40% long documents, 35% math/STEM and 25% general replay.
+# The 16K stage gave math and STEM only about 17% of its tokens, and its final checkpoint lost
+# 3 points on MATH and 4.8 on GSM8K against the 4K init. The 4K stage ended with about 47% STEM.
+# This stage therefore gives STEM 35%, split in the 4K stage's proportions, and takes the room
+# from the long share, which is below ProLong's 60% (arXiv 2410.02660, section 3.2).
+# The caps of stage_32k.py keep a stream with a large enough store to at most one pass over the
+# 20B tokens. bench_mcq is a small store built from QASC, so it gets many passes at its share.
+# mix.py prints the passes per stream. Lower bench_mcq's share in GENERAL_SHARES of
+# data_prep/long_context/stage_32k.py to repeat it less.
+#
+# The FA3 kernel: set ORBIT_ATTN_KERNEL_PATH as described in stage3_16k.yaml.
+# The ${...} variables are described in src/orbit/README.md.
+save_dir: ${ORBIT_RUNS}
+run_name: orbit_stage4_32k
+
+auto_resume: true
+init_from_hf: ${ORBIT_EXPORTS}/stage3_16k_step47684
+resume_from: null
+
+detect_nan: true
+dump_nonfinite_batch: ${ORBIT_RUNS}/nan_dumps
+
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+tokenizer_config: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_orbit/tokenizer_config.json
+
+# ProLong's 64K stage used 1e-5 with 10% warmup and cosine to 1e-6 (Table 9). The 16K stage
+# ended at 2e-6, so the schedule re-warms from 0.1 x lr over 300 steps.
+lr: 1e-5
+lr_scheduler: warmup_cosine
+lr_warmup_steps: 300
+lr_warmup_start_lr: null
+lr_warmup_start_factor: 0.1
+lr_warmup_start_step: auto
+lr_cosine_steps: auto
+lr_min: 1e-6
+lr_min_factor: 0.1
+
+beta: 0.15
+seq_len: 32768
+total_ut_steps: 4
+# Chosen by short trial runs from the 16K stage: with 4e6 the passkey at 32K was found in 96%
+# (English) and 100% (Russian) of cases, against 58% and 88% with the 16K value 1e6, and the loss
+# at the last positions was lower, at a cost of about 0.01 on short documents. Without this key
+# the trainer would keep the export's 1e6, so it is written out.
+rope_theta: 4000000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+
+document_masking: true
+
+# 2 x 32768 tokens per GPU at 64 GPUs gives 4,194,304 tokens per step, the same tokens per GPU as
+# the 16K stage's 4 x 16384. The trainer rounds 20B tokens up to 4,769 steps.
+tokens_per_step: 4194304
+token_budget: 20000000000
+
+batch_size: 2
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+predownload: null
+cache_limit: null
+seed: 45
+model_init_seed: 271828
+stage1_epoch_samples: 1000000000
+stage1_shuffle: true
+# A new seed, so this stage does not reuse the 16K stage's sampling order.
+stage1_shuffle_seed: 32769
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+
+# Data: written by data_prep/long_context/mix.py for the 32K stage.
+stage1_root: ${ORBIT_DATA}/ctx32k/streams
+stage1_mixing_mode: mosaic_random
+stage1_token_dtype: uint32
+stage1_streams:
+  prolong_code: prolong_code
+  code_repos_long: code_repos_long
+  olmocr_science_long: olmocr_science_long
+  olmocr_health_long: olmocr_health_long
+  olmocr_literature_long: olmocr_literature_long
+  arxiv_long: arxiv_long
+  finepdfs_ru_long: finepdfs_ru_long
+  ru_books_long: ru_books_long
+  cc_math: cc_math
+  megamath: megamath
+  nemotron_synth_code: nemotron_synth_code
+  cascade_sft: cascade_sft
+  nemotron_specialized: nemotron_specialized
+  acereason: acereason
+  openthoughts3: openthoughts3
+  bench_math: bench_math
+  bench_math_dm: bench_math_dm
+  nemotron_cc: nemotron_cc
+  ru_web_le8k: ru_web_le8k
+  opc: opc
+  ru_wiki: ru_wiki
+  nemotron_if: nemotron_if
+  smoltalk2_en: smoltalk2_en
+  twix: twix
+  ru_sft: ru_sft
+  grandmaster: grandmaster
+  oasst2_ru: oasst2_ru
+  bench_train: bench_train
+  bench_mcq: bench_mcq
+stage1_dataset_proportions:
+  prolong_code: 0.099999
+  code_repos_long: 0.033333
+  olmocr_science_long: 0.093332
+  olmocr_health_long: 0.02
+  olmocr_literature_long: 0.033333
+  arxiv_long: 0.02
+  finepdfs_ru_long: 0.066666
+  ru_books_long: 0.033333
+  cc_math: 0.066999
+  megamath: 0.021
+  nemotron_synth_code: 0.035
+  cascade_sft: 0.088999
+  nemotron_specialized: 0.088999
+  acereason: 0.03
+  openthoughts3: 0.008
+  bench_math: 0.008
+  bench_math_dm: 0.003
+  nemotron_cc: 0.137499
+  ru_web_le8k: 0.084999
+  opc: 0.004
+  ru_wiki: 0.001
+  nemotron_if: 0.008
+  smoltalk2_en: 0.001
+  twix: 0.006
+  ru_sft: 0.002
+  grandmaster: 0.001
+  oasst2_ru: 1e-05
+  bench_train: 0.0015
+  bench_mcq: 0.003
+
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+# The stage is about a day long, so checkpoints come twice as often as at 16K.
+save_every: 500
+tensorboard_root: ${ORBIT_RUNS}/tensorboard
+
+# In-training evaluation (eval/in_training/README.md). Every 1000 steps the run pauses, and all
+# GPUs evaluate the base suite (eval/in_training/suites/base.yaml, the default) with RULER up to
+# 32K. The scores go to TensorBoard. eval_at_end adds the last step, 4,769, which the cadence
+# misses. eval_at_start evaluates the 16K export once before the first step: it is the baseline of
+# the curves, and it shows within minutes that the evaluation works on every node.
+eval_every: 1000
+eval_at_start: true
+eval_at_end: true
+eval_python: ${ORBIT_EVAL_PYTHON}
+eval_harness_path: ${ORBIT_LM_EVAL}
+# The offline cache must hold the datasets of the base suite, MBPP included ('train_eval prefetch').
+eval_cache_dir: ${ORBIT_EVAL_CACHE}

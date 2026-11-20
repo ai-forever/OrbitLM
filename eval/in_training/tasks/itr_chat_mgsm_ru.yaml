@@ -1,0 +1,25 @@
+# MGSM, Russian part, for SFT checkpoints: 0-shot chat with a Russian format instruction, so that the
+# whole prompt is Russian for the answer-language gate G11, scored by math_verify against answer_number.
+tag:
+  - in_training_eval_chat
+task: itr_chat_mgsm_ru
+dataset_path: juletxara/mgsm
+dataset_name: ru
+dataset_kwargs:
+  revision: b2f13d426afe3be8d69a7e739b36724db8b66bbc
+output_type: generate_until
+test_split: test
+process_docs: !function chat_local.process_mgsm_ru
+doc_to_text: !function chat_local.mgsm_ru_prompt
+doc_to_target: itr_gold
+process_results: !function chat_local.process_math
+generation_kwargs:
+  until: []
+  max_gen_toks: 4096
+num_fewshot: 0
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

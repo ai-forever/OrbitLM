@@ -1,0 +1,99 @@
+# Stage 1 of OrbitLM: 4K pretraining from random init, 100,000 steps of 4,194,304 tokens.
+#
+# A step is 16 sequences of 4096 tokens on each of 64 GPUs with grad_accum 1. On fewer GPUs the
+# trainer raises grad_accum to keep tokens_per_step. The export of step 100000
+# (python -m orbit.export, base export) starts stage 2.
+# The ${...} variables are described in src/orbit/README.md.
+save_dir: ${ORBIT_RUNS}
+run_name: orbit_stage1_4k
+
+auto_resume: true
+init_from_hf: null
+resume_from: null
+
+detect_nan: true
+dump_nonfinite_batch: ${ORBIT_RUNS}/nan_dumps
+
+model_config: ../../../src/orbit/ouro_1.4b_qwen3_config.json
+tokenizer_config: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_orbit/tokenizer_config.json
+
+lr: 3e-4
+lr_scheduler: warmup_cosine
+lr_warmup_steps: 1000
+lr_warmup_start_lr: null
+lr_warmup_start_factor: 0.1
+lr_warmup_start_step: auto
+lr_cosine_steps: auto
+lr_min: 3e-5
+lr_min_factor: 0.1
+
+beta: 0.15
+seq_len: 4096
+total_ut_steps: 4
+rope_theta: 40000.0
+
+dtype: bf16
+attn_impl: kernels-community/vllm-flash-attn3
+float32_matmul_precision: highest
+fsdp_sharding_strategy: shard_grad_op
+fsdp_reduce_dtype: fp32
+fsdp_buffer_dtype: fp32
+gradient_checkpointing: true
+
+# The cosine runs over the whole budget: 419,430,400,000 tokens are 100,000 steps.
+tokens_per_step: 4194304
+token_budget: 419430400000
+
+batch_size: 16
+grad_accum: null
+num_workers: 0
+prefetch_factor: 2
+loader_timeout: 0.0
+predownload: null
+cache_limit: null
+seed: 44
+model_init_seed: 271828
+stage1_root: ${ORBIT_DATA}/pretrain_4k/en
+stage1_epoch_samples: 1000000000
+stage1_mixing_mode: mosaic_random
+stage1_shuffle: true
+stage1_shuffle_seed: 44
+stage1_shuffle_block_size: 10737418
+stage1_num_canonical_nodes: null
+stage1_token_dtype: uint32
+# A relative stream path is a folder under stage1_root. The Russian streams (web text, books,
+# scientific articles, Wikipedia, Wikiquote) live under pretrain_4k/ru instead; data_prep/README.md
+# describes the format they need.
+stage1_streams:
+  nemotron_cc_high: nemotron-cc
+  nemotron_cc_math: Nemotron-CC-Math-v1
+  megamath_high_quality: MegaMath-high-quality
+  opc_annealing_corpus: opc-annealing-corpus
+  nemotron_synthetic_code: Nemotron-Post-Training_merged
+  nemotron_sft_merged: Nemotron-Cascade-SFT-Stage-1_merged
+  ru_web: ${ORBIT_DATA}/pretrain_4k/ru/web
+  ru_books: ${ORBIT_DATA}/pretrain_4k/ru/books
+  ru_science: ${ORBIT_DATA}/pretrain_4k/ru/science
+  ru_wikipedia: ${ORBIT_DATA}/pretrain_4k/ru/wikipedia
+  ru_wikiquote: ${ORBIT_DATA}/pretrain_4k/ru/wikiquote
+# Relative sampling weights; the loader divides them by their sum.
+stage1_dataset_proportions:
+  nemotron_cc_high: 0.665
+  nemotron_cc_math: 0.15
+  megamath_high_quality: 0.046
+  opc_annealing_corpus: 0.005
+  nemotron_synthetic_code: 0.038
+  nemotron_sft_merged: 0.096
+  ru_web: 0.395224
+  ru_books: 0.030751
+  ru_science: 0.001764
+  ru_wikipedia: 0.000706
+  ru_wikiquote: 0.000126
+strict_dataloader_determinism: true
+weight_decay: 0.1
+max_grad_norm: 1.0
+lm_loss_chunk_size: 128
+use_fused_adamw: true
+log_every: 1
+save_every: 1000
+tensorboard_root: ${ORBIT_RUNS}/tensorboard

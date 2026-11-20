@@ -1,0 +1,6 @@
+# The release no-think format for prompts that are not math problems: like sft_chat_think.yaml, but the
+# assistant turn starts with an empty, closed thinking block, as the chat template
+# data_prep/tokenizer/templates/qwen35_think.jinja renders it with enable_thinking=false. The user
+# turn is exactly the question, without the math instruction.
+# The template goes through str.format, so literal braces would need doubling; this text has none.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"

@@ -1,0 +1,20 @@
+{
+ "_source": "lm-eval results of a OrbitLM pretraining checkpoint (HF backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_hellaswag": []
+ },
+ "n-samples": {
+  "itr_hellaswag": {
+   "effective": 10042,
+   "original": 10042
+  }
+ },
+ "results": {
+  "itr_hellaswag": {
+   "acc,none": 0.49362676757618007,
+   "acc_norm,none": 0.6667994423421629,
+   "acc_norm_stderr,none": 0.004703942346762715,
+   "acc_stderr,none": 0.004989376044183789
+  }
+ }
+}

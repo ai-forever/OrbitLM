@@ -1,0 +1,36 @@
+# HumanEval 0-shot, greedy pass@1, the stock lm-eval task. Scoring executes the generated code
+# through the evaluate "code_eval" metric, which needs HF_ALLOW_CODE_EVAL=1, lm-eval's
+# --confirm_run_unsafe_code, and the metric module in the offline cache (train_eval prefetch).
+tag:
+  - in_training_eval
+task: itr_humaneval
+dataset_path: openai/openai_humaneval
+unsafe_code: true
+output_type: generate_until
+test_split: test
+doc_to_text: "{{prompt}}"
+doc_to_target: "{{test}}\ncheck({{entry_point}})"
+metric_list:
+  - metric: !function humaneval_local.pass_at_k
+    aggregation: mean
+    higher_is_better: true
+    k: [1]
+generation_kwargs:
+  until:
+    - "\nclass"
+    - "\ndef"
+    - "\n#"
+    - "\nif"
+    - "\nprint"
+    - "\n```"
+  max_gen_toks: 1024
+  do_sample: false
+repeats: 1
+num_fewshot: 0
+filter_list:
+  - name: "create_test"
+    filter:
+      - function: "custom"
+        filter_fn: !function humaneval_local.build_predictions
+metadata:
+  version: 1.0

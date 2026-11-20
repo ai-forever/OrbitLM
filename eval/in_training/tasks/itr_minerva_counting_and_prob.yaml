@@ -1,0 +1,3 @@
+include: itr_minerva_algebra.yaml
+dataset_name: counting_and_probability
+task: itr_minerva_counting_and_prob

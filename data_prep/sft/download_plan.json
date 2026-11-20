@@ -1,0 +1,22 @@
+[
+ {
+  "repo": "HuggingFaceTB/smoltalk2",
+  "revision": "fc6cc2103c066455aade5d7fbb346039ae36ca5e",
+  "patterns": ["SFT/*.parquet"]
+ },
+ {
+  "repo": "CohereForAI/aya_dataset",
+  "revision": "main",
+  "patterns": ["data/train-*.parquet"]
+ },
+ {
+  "repo": "Vikhrmodels/GrandMaster-PRO-MAX",
+  "revision": "main",
+  "patterns": ["data/train-*.parquet"]
+ },
+ {
+  "repo": "allenai/Dolci-Instruct-SFT",
+  "revision": "main",
+  "patterns": ["data/train-*.parquet"]
+ }
+]

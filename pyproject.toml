@@ -1,0 +1,38 @@
+# Makes the trainer (orbit), the RL code (orbit_verl) and the vLLM plugin (orbit_vllm) importable
+# without PYTHONPATH:
+#
+#   python -m pip install -e . --no-deps
+#
+# Run it once in each environment, after the environment's own requirements file. The pipeline needs
+# three environments with different versions of torch, transformers and vLLM (README.md, section
+# "Environments"), so this file declares no dependencies; the pinned files in requirements/ do.
+# data_prep/, eval/, inference/ and scripts/ are not packages. Their scripts run by path from the
+# repository root.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orbit"
+version = "0.1.0"
+description = "Training pipeline of OrbitLM-1.8B, a looped language model: pretraining, context extension, SFT, distillation, RL and inference"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = []
+
+# vLLM removed its Ouro model after 0.26. vLLM calls this entry point in every process it starts, so
+# installing the repository is enough for newer vLLM releases to load OrbitLM exports. On vLLM 0.26
+# and older the plugin does nothing and the built-in model is used.
+[project.entry-points."vllm.general_plugins"]
+orbit_ouro = "orbit_vllm:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["orbit*"]
+
+[tool.setuptools.package-data]
+# The model config that the export commands pass with --model-config.
+orbit = ["ouro_1.4b_qwen3_config.json"]

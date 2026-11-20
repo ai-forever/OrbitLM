@@ -1,0 +1,65 @@
+# The in-training evaluation suite of the OrbitLM trainer for the base model: the default suite
+# (eval_suite unset), which the 32K context stage runs.
+#
+# train.py runs it every eval_every steps when eval_every is set (eval/in_training/README.md). Every
+# benchmark listed here is run; a name the trainer does not know stops the run at startup. Paths are
+# relative to this file.
+#
+# The protocol is the paper's base few-shot protocol, with these differences:
+#   - CRUXEval uses one greedy sample instead of 10 sampled ones, which saves about 26 minutes
+#     of code execution. Its pass@1 is not comparable with the stock 10-sample pass@1. The
+#     scorer is the paper's (tasks/cruxeval_local.py), not the stock scorer of lm-eval 0.4.13,
+#     which fails correct string answers.
+#   - RULER uses 100 samples per length instead of 500.
+#   - MATH generates up to 1024 tokens. The paper's numbers used lm-eval's default of 256, which
+#     cuts long solutions, so the MATH numbers are not comparable with the paper's.
+#   - HellaSwag is split into four shards that run on different ranks. lm-eval draws the
+#     10-shot examples from one seeded generator that advances with every document, and each
+#     shard restarts it, so documents get different few-shot examples than in an unsharded run.
+#     That should move the score only at the noise level. Within one run the plan is fixed, so
+#     every evaluation uses the same examples, but runs with a different number of GPUs do not.
+#   - MMLU-Pro is the stock task of lm-eval 0.4.13, task version 3.1. The paper ran version 2.1,
+#     whose answer options keep stray spaces; in 140 of the 12,032 prompts these sat mostly on
+#     the correct option and gave it away. Version 3.1 strips them, which can move the score by at
+#     most 1.2 points and most likely by a few tenths.
+#   - MBPP is not in the paper. It uses the prompt and the three few-shot examples of lm-eval
+#     0.4.13's stock mbpp task, with two changes: a budget of 512 generated tokens instead of
+#     lm-eval's default of 256, and each problem's test_setup_code run before its asserts
+#     (tasks/mbpp_local.py). It runs in lm-eval processes of its own.
+#
+# Everything runs on the public lm-eval 0.4.13 (eval/in_training/README.md, section "Setup").
+#
+#   math        MATH (minerva), 4-shot, math_verify, up to 1024 generated tokens
+#   gsm8k       GSM8K, 5-shot, exact match (strict), up to 256 tokens
+#   mmlu        MMLU, 5-shot, acc
+#   mmlu_pro    MMLU-Pro, 5-shot, exact match, up to 512 tokens
+#   hellaswag   HellaSwag, 10-shot, acc_norm
+#   winogrande  Winogrande, 5-shot, acc
+#   cruxeval    CRUXEval output + input, 2-shot, pass@1 of one greedy sample, up to 1024 tokens
+#   humaneval   HumanEval, 0-shot, pass@1 greedy, up to 1024 tokens
+#   mbpp        MBPP, 3-shot, pass@1 greedy, up to 512 tokens
+#   ruler       RULER, the 8 needle-in-a-haystack tasks at each length, up to 128 tokens
+tasks_dir: ../tasks
+entry: ../run_lm_eval.py
+
+# Fixed cost of one evaluation process (interpreter, lm-eval task index, vLLM engine start, CUDA
+# graphs), used to balance the ranks and to set each process's timeout. It was 65-100 s on an H200
+# and 110 s on an H100.
+process_startup_seconds: 110
+
+# Extra vLLM model arguments, appended to the trainer's own (for example "enforce_eager=True").
+vllm_model_args: ""
+
+benchmarks:
+  math: {}
+  gsm8k: {}
+  mmlu: {}
+  mmlu_pro: {}
+  hellaswag: {shards: 4}
+  winogrande: {}
+  cruxeval: {}
+  humaneval: {}
+  mbpp: {}
+  ruler:
+    lengths: [4096, 8192, 16384, 32768]
+    num_samples: 100

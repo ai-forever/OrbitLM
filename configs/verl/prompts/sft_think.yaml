@@ -1,0 +1,8 @@
+# The release chat format in think mode, written out as text: <|endoftext|> (packing puts it before
+# most SFT dialogs), the user turn "<question>\n<instruction>", and the assistant turn opened with
+# "<think>\n". It equals [151643] followed by the chat template
+# data_prep/tokenizer/templates/qwen35_think.jinja rendered with enable_thinking=true. The SFT v5
+# export's own template renders the same text, because the prompt has no system turn. The tests
+# check this against the template of an SFT export.
+# Braces are doubled because the template goes through str.format.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\nPlease reason step by step, and put your final answer within \\boxed{{}}.<|im_end|>\n<|im_start|>assistant\n<think>\n"

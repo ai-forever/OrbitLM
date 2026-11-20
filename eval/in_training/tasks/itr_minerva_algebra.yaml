@@ -1,0 +1,35 @@
+# MATH (minerva, 4-shot), the stock lm-eval minerva_math task with local prompt functions.
+# minerva_local.py relaxes the antlr4 4.11 check, which only the exact_match metric needs; the
+# reported metric is math_verify. Generation is capped at 1024 tokens (the stock vLLM default
+# is 256, which cuts long solutions).
+tag:
+  - in_training_eval
+task: itr_minerva_algebra
+dataset_path: EleutherAI/hendrycks_math
+process_docs: !function minerva_local.process_docs
+dataset_name: algebra
+output_type: generate_until
+training_split: train
+test_split: test
+doc_to_text: !function minerva_local.doc_to_text
+process_results: !function minerva_local.process_results
+doc_to_target: "{{answer if few_shot is undefined else solution}}"
+generation_kwargs:
+  until:
+    - "Problem:"
+  do_sample: false
+  temperature: 0
+  max_gen_toks: 1024
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+  - metric: math_verify
+    aggregation: mean
+    higher_is_better: true
+num_fewshot: 4
+metadata:
+  version: 3.0
+fewshot_config:
+  sampler: first_n
+  samples: !function minerva_local.list_fewshot_samples

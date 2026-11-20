@@ -1,0 +1,27 @@
+{
+ "_source": "lm-eval results of a 16K-stage OrbitLM checkpoint (vLLM backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_cruxeval_input": [],
+  "itr_cruxeval_output": []
+ },
+ "n-samples": {
+  "itr_cruxeval_input": {
+   "effective": 800,
+   "original": 800
+  },
+  "itr_cruxeval_output": {
+   "effective": 800,
+   "original": 800
+  }
+ },
+ "results": {
+  "itr_cruxeval_input": {
+   "pass@1,create_test": 0.30987499999999996,
+   "pass@1_stderr,create_test": 0.014764101863931966
+  },
+  "itr_cruxeval_output": {
+   "pass@1,create_test": 0.2763749999999999,
+   "pass@1_stderr,create_test": 0.014763651512285828
+  }
+ }
+}

@@ -1,0 +1,44 @@
+# MBPP 3-shot, greedy pass@1, on the 500 problems of the test split at a pinned revision. The prompt
+# and the three few-shot examples are those of the stock lm-eval mbpp task, copied into
+# mbpp_local.py. Two things differ from the stock task. Generation stops at [DONE] or after 512
+# tokens; the stock task sets no budget, so lm-eval's vLLM backend stops it after 256 tokens. And a
+# problem's test_setup_code runs before its asserts (mbpp_local.py says why).
+#
+# Scoring executes the generated code through the evaluate "code_eval" metric, as HumanEval does. It
+# needs HF_ALLOW_CODE_EVAL=1, lm-eval's --confirm_run_unsafe_code, and the metric module in the
+# offline cache (train_eval prefetch).
+tag:
+  - in_training_eval
+task: itr_mbpp
+dataset_path: google-research-datasets/mbpp
+dataset_name: full
+dataset_kwargs:
+  revision: 4bb6404fdc6cacfda99d4ac4205087b89d32030c
+unsafe_code: true
+output_type: generate_until
+test_split: test
+doc_to_text: !function mbpp_local.doc_to_text
+doc_to_target: !function mbpp_local.doc_to_target
+target_delimiter: ""
+metric_list:
+  - metric: !function mbpp_local.pass_at_k
+    aggregation: mean
+    higher_is_better: true
+    k: [1]
+generation_kwargs:
+  until:
+    - "[DONE]"
+  max_gen_toks: 512
+  do_sample: false
+repeats: 1
+num_fewshot: 3
+fewshot_config:
+  sampler: first_n
+  samples: !function mbpp_local.list_fewshot_samples
+filter_list:
+  - name: "create_test"
+    filter:
+      - function: "custom"
+        filter_fn: !function mbpp_local.build_predictions
+metadata:
+  version: 1.0

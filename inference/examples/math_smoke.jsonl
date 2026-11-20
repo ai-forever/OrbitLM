@@ -1,0 +1,4 @@
+{"id": "en_sum", "prompt": "Natasha had 48 candies and gave away half of them. Then she bought 15 more. How many candies does she have now?\nPlease reason step by step, and put your final answer within \\boxed{}."}
+{"id": "en_roots", "prompt": "Find the sum of all real solutions of $x^2 - 7x + 10 = 0$.\nPlease reason step by step, and put your final answer within \\boxed{}."}
+{"id": "ru_sum", "prompt": "У Наташи было 48 конфет, она отдала половину, а потом купила ещё 15. Сколько конфет у неё теперь?\nРассуждай пошагово и запиши окончательный ответ в \\boxed{}."}
+{"id": "ru_roots", "prompt": "Найдите сумму всех действительных корней уравнения $x^2 - 7x + 10 = 0$.\nРассуждай пошагово и запиши окончательный ответ в \\boxed{}."}

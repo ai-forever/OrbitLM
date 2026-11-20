@@ -1,0 +1,100 @@
+{"lang": "en", "prompt": "Hi!"}
+{"lang": "en", "prompt": "Hello, how are you?"}
+{"lang": "en", "prompt": "Good morning!"}
+{"lang": "en", "prompt": "Hey there"}
+{"lang": "en", "prompt": "Thanks a lot!"}
+{"lang": "en", "prompt": "Thank you, that helped."}
+{"lang": "en", "prompt": "Bye, see you later."}
+{"lang": "en", "prompt": "What's up?"}
+{"lang": "en", "prompt": "Who are you?"}
+{"lang": "en", "prompt": "What can you do?"}
+{"lang": "en", "prompt": "What is 2 + 2?"}
+{"lang": "en", "prompt": "What is 7 times 8?"}
+{"lang": "en", "prompt": "Is 17 a prime number?"}
+{"lang": "en", "prompt": "What is the capital of France?"}
+{"lang": "en", "prompt": "How many days are in a week?"}
+{"lang": "en", "prompt": "What color is the sky on a clear day?"}
+{"lang": "en", "prompt": "Spell the word 'necessary'."}
+{"lang": "en", "prompt": "Translate 'cat' into Spanish."}
+{"lang": "en", "prompt": "Give me a synonym for 'happy'."}
+{"lang": "en", "prompt": "What is the opposite of 'cold'?"}
+{"lang": "en", "prompt": "Say hello in French."}
+{"lang": "en", "prompt": "How many legs does a spider have?"}
+{"lang": "en", "prompt": "What is the boiling point of water in Celsius?"}
+{"lang": "en", "prompt": "Convert 1 kilometer to meters."}
+{"lang": "en", "prompt": "Which is bigger, 0.5 or 0.45?"}
+{"lang": "en", "prompt": "What day comes after Monday?"}
+{"lang": "en", "prompt": "Name three primary colors."}
+{"lang": "en", "prompt": "Is the Earth round?"}
+{"lang": "en", "prompt": "What is the plural of 'mouse'?"}
+{"lang": "en", "prompt": "Tell me a fun fact."}
+{"lang": "en", "prompt": "Recommend a good book."}
+{"lang": "en", "prompt": "Write one sentence about the sea."}
+{"lang": "en", "prompt": "Count from 1 to 5."}
+{"lang": "en", "prompt": "What time zone is London in?"}
+{"lang": "en", "prompt": "How do you say 'thank you' in German?"}
+{"lang": "en", "prompt": "Can you help me?"}
+{"lang": "en", "prompt": "I'm bored."}
+{"lang": "en", "prompt": "Ok"}
+{"lang": "en", "prompt": "Yes, please."}
+{"lang": "en", "prompt": "What's the square root of 81?"}
+{"lang": "en", "prompt": "How many minutes are in an hour?"}
+{"lang": "en", "prompt": "Who wrote Romeo and Juliet?"}
+{"lang": "en", "prompt": "What is H2O?"}
+{"lang": "en", "prompt": "Give me a word that rhymes with 'light'."}
+{"lang": "en", "prompt": "Is a tomato a fruit?"}
+{"lang": "en", "prompt": "Wish me luck on my exam."}
+{"lang": "en", "prompt": "What is the largest planet in the solar system?"}
+{"lang": "en", "prompt": "Round 3.7 to the nearest whole number."}
+{"lang": "en", "prompt": "What month comes before June?"}
+{"lang": "en", "prompt": "Have a nice day!"}
+{"lang": "ru", "prompt": "Привет!"}
+{"lang": "ru", "prompt": "Здравствуйте, как дела?"}
+{"lang": "ru", "prompt": "Доброе утро!"}
+{"lang": "ru", "prompt": "Привет, ты тут?"}
+{"lang": "ru", "prompt": "Спасибо большое!"}
+{"lang": "ru", "prompt": "Спасибо, это помогло."}
+{"lang": "ru", "prompt": "Пока, до встречи."}
+{"lang": "ru", "prompt": "Как настроение?"}
+{"lang": "ru", "prompt": "Кто ты?"}
+{"lang": "ru", "prompt": "Что ты умеешь?"}
+{"lang": "ru", "prompt": "Сколько будет 2 + 2?"}
+{"lang": "ru", "prompt": "Сколько будет 7 умножить на 8?"}
+{"lang": "ru", "prompt": "Число 17 простое?"}
+{"lang": "ru", "prompt": "Какая столица Франции?"}
+{"lang": "ru", "prompt": "Сколько дней в неделе?"}
+{"lang": "ru", "prompt": "Какого цвета небо в ясный день?"}
+{"lang": "ru", "prompt": "Как пишется слово «прекрасный»?"}
+{"lang": "ru", "prompt": "Переведи слово «кошка» на английский."}
+{"lang": "ru", "prompt": "Подбери синоним к слову «радостный»."}
+{"lang": "ru", "prompt": "Какой антоним у слова «холодный»?"}
+{"lang": "ru", "prompt": "Как сказать «привет» по-французски?"}
+{"lang": "ru", "prompt": "Сколько ног у паука?"}
+{"lang": "ru", "prompt": "При какой температуре кипит вода?"}
+{"lang": "ru", "prompt": "Сколько метров в одном километре?"}
+{"lang": "ru", "prompt": "Что больше: 0,5 или 0,45?"}
+{"lang": "ru", "prompt": "Какой день идёт после понедельника?"}
+{"lang": "ru", "prompt": "Назови три основных цвета."}
+{"lang": "ru", "prompt": "Земля круглая?"}
+{"lang": "ru", "prompt": "Какое множественное число у слова «человек»?"}
+{"lang": "ru", "prompt": "Расскажи интересный факт."}
+{"lang": "ru", "prompt": "Посоветуй хорошую книгу."}
+{"lang": "ru", "prompt": "Напиши одно предложение о море."}
+{"lang": "ru", "prompt": "Посчитай от одного до пяти."}
+{"lang": "ru", "prompt": "Сколько часов разницы между Москвой и Лондоном?"}
+{"lang": "ru", "prompt": "Как сказать «спасибо» по-немецки?"}
+{"lang": "ru", "prompt": "Можешь помочь?"}
+{"lang": "ru", "prompt": "Мне скучно."}
+{"lang": "ru", "prompt": "Ок"}
+{"lang": "ru", "prompt": "Да, пожалуйста."}
+{"lang": "ru", "prompt": "Чему равен квадратный корень из 81?"}
+{"lang": "ru", "prompt": "Сколько минут в часе?"}
+{"lang": "ru", "prompt": "Кто написал «Войну и мир»?"}
+{"lang": "ru", "prompt": "Что такое H2O?"}
+{"lang": "ru", "prompt": "Подбери рифму к слову «ночь»."}
+{"lang": "ru", "prompt": "Помидор это фрукт?"}
+{"lang": "ru", "prompt": "Пожелай мне удачи на экзамене."}
+{"lang": "ru", "prompt": "Какая самая большая планета Солнечной системы?"}
+{"lang": "ru", "prompt": "Округли 3,7 до целого."}
+{"lang": "ru", "prompt": "Какой месяц идёт перед июнем?"}
+{"lang": "ru", "prompt": "Хорошего дня!"}

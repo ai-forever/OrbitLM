@@ -1,0 +1,62 @@
+# The hybrid variant of distill_rl_sft.yaml at 16K tokens, with a thinking budget. Everything not set
+# here is distill_rl_sft's: the teacher, the prompt pool, the gold rows, GRPO on top of distillation,
+# the no-think cap of 4K and the validation sets. scripts/verl/run_distill.sh launches it, and
+# docs/verl/README.md has the inputs.
+#
+# Why 16K. Our teacher, Qwen3-8B, closes its thinking within 8K on only about a third of the gold math
+# and code prompts (37% and 32%). At 16K it closes 87% and 65%. A rollout cut by the length limit
+# has no answer to check or to distil.
+#
+# Why a thinking budget. A training response of a think mode first generates at most
+# ORBIT_THINK_BUDGET tokens. If its thinking block is still open then, the agent loop appends
+# Qwen3's stop-thinking sentence and "</think>" with response mask 0 and the model answers in the
+# rest of the 16K (orbit_verl.data.agent_loop). Every rollout therefore ends with an answer:
+# - The teacher scores that answer, so distillation trains the student to answer from partial
+#   thinking. That is what budget forcing asks of the model at inference (inference/README.md).
+# - A loop in the thinking stops at the budget instead of filling the whole 16K.
+# - A forced answer scores like a cut one for GRPO (truncated_score 0), so the task reward still
+#   prefers answers that close by themselves and are right; forced_score_scale below changes that.
+# Validation rows are never forced, so the validation numbers show how the model closes by itself.
+hydra:
+  searchpath:
+    - pkg://verl.trainer.config   # hydra honors searchpath only in the primary config
+defaults:
+  - distill_rl_sft
+  - _self_
+
+orbit:
+  env:
+    # 16,384 - 14,336 leaves about 2K tokens for the answer after the 25 stop-thinking ids, enough
+    # for a ```python block. The agent loop refuses a budget that leaves less than 256.
+    ORBIT_THINK_BUDGET: "14336"
+
+data:
+  max_response_length: 16384
+
+actor_rollout_ref:
+  actor:
+    # At least max_prompt_length + max_response_length = 17,472. The logits buffer of a micro-batch
+    # grows with it: 18,432 tokens x 151,936 ids in bf16 is about 5.6 GB.
+    ppo_max_token_len_per_gpu: 18432
+  ref:
+    # The launcher checks this budget against the same 17,472 although this recipe runs no reference model.
+    log_prob_max_token_len_per_gpu: 18432
+  rollout:
+    log_prob_max_token_len_per_gpu: 18432
+
+distillation:
+  teacher_models:
+    teacher_model:
+      inference:
+        # One prefill step holds a whole 17.5K sequence, as the 8K config's 16,384 held a 9.3K one.
+        max_num_batched_tokens: 18432
+
+reward:
+  custom_reward_function:
+    reward_kwargs:
+      # null: a forced answer scores truncated_score (0), like an answer cut by the length limit. A
+      # number scores it correctness x that number, which also rewards thinking past the budget.
+      # Under std-normalised GRPO a small number does not damp that: in a group without a correct
+      # answer that closed by itself, any number above 0 gives the correct forced answers the full
+      # advantage.
+      forced_score_scale: null

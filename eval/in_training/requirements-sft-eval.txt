@@ -1,0 +1,15 @@
+# The two packages that IFEval's checks need on top of lm-eval 0.4.13. Use this file only for an
+# evaluation environment that you cannot or would rather not change; requirements/eval.txt already
+# installs the same versions into an environment that is built from scratch. The packages then go
+# into a folder of their own, which eval_extra_pythonpath puts on the evaluation processes'
+# PYTHONPATH (eval/in_training/README.md). Run it from the repo root:
+#   $ORBIT_EVAL_PYTHON -m pip install --no-deps --require-hashes --no-build-isolation \
+#     --target /path/to/eval_extras -r eval/in_training/requirements-sft-eval.txt
+#
+# immutabledict: lm-eval's IFEval checks import it. MIT.
+immutabledict==4.3.1 --hash=sha256:c9facdc0ff30fdb8e35bd16532026cac472a549e182c94fa201b51b25e4bf7bf
+# langdetect: the language checks of 95 of IFEval's 541 prompts use it. Its last release is 1.0.9.
+# PyPI's license field says MIT, while the classifier and the repository's LICENSE say Apache-2.0.
+# The only 1.0.9 wheel is tagged py2, so pip builds this sdist; --no-build-isolation builds it with the
+# environment's setuptools. Its one dependency, six, is in the environment.
+langdetect==1.0.9 --hash=sha256:cbc1fef89f8d062739774bd51eda3da3274006b3661d199c2655f6b3f6d605a0

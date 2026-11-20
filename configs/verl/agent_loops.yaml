@@ -1,0 +1,31 @@
+# Agent loops that verl can pick per parquet row (column agent_name) or by default
+# (actor_rollout_ref.rollout.agent.default_agent_loop). verl reads this file through
+# actor_rollout_ref.rollout.agent.agent_loop_config_path.
+#
+# verl builds each loop with hydra.utils.instantiate, so every key except _target_ becomes a
+# constructor argument. OrbitLMAgentLoop accepts "name" for that reason, even though it only needs
+# prompt_mode. The prompt modes are defined in src/orbit_verl/data/prompts.py.
+- name: orbit_sft_think
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_think
+- name: orbit_sft_no_think
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_no_think
+- name: orbit_sft_think_ru
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_think_ru
+- name: orbit_sft_no_think_ru
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_no_think_ru
+- name: orbit_sft_think_code
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_think_code
+- name: orbit_sft_no_think_code
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_no_think_code
+- name: orbit_sft_chat_think
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_chat_think
+- name: orbit_sft_chat_no_think
+  _target_: orbit_verl.data.agent_loop.OrbitLMAgentLoop
+  prompt_mode: sft_chat_no_think

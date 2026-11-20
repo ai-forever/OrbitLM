@@ -1,0 +1,19 @@
+# ToolMind open_datasets, packed on its own so it can be added to v7.
+# Loss is on the last assistant turn only: the shared prefix stays in the
+# context with mask 0. Same tokenizer, context and quality filter as v6.
+# The input is the jsonl that prepare_tools.py --only toolmind_open writes.
+name: toolmind_open
+out_root: ${ORBIT_DATA}/sft/toolmind_open
+seq_len: 32768
+token_budget: 10000000000
+min_resp_tokens: 2
+system_turns: true
+tokenizer: ${ORBIT_TOKENIZERS}/tokenizer_qwen3_4b_qwen35_tools
+
+streams:
+  - id: toolmind_open
+    kind: tool_jsonl
+    path: ${ORBIT_DATA}/sft/tools/toolmind_open.jsonl
+    enable_thinking: true
+    loss_last_assistant: true
+    weight: 1

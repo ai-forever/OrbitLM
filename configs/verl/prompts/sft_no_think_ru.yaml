@@ -1,0 +1,3 @@
+# The no-think format of sft_no_think.yaml for a Russian math problem: the Russian instruction of
+# sft_think_ru.yaml, and the assistant turn opened with an empty, closed thinking block.
+prompt_template: "<|endoftext|><|im_start|>user\n{question}\nРассуждай пошагово и запиши окончательный ответ в \\boxed{{}}.<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"

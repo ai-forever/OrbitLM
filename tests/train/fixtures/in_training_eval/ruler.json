@@ -1,0 +1,113 @@
+{
+ "_source": "lm-eval results of a 16K-stage OrbitLM checkpoint (vLLM backend), task names mapped to the local itr_ tasks",
+ "group_subtasks": {
+  "itr_niah_multikey_1": [],
+  "itr_niah_multikey_2": [],
+  "itr_niah_multikey_3": [],
+  "itr_niah_multiquery": [],
+  "itr_niah_multivalue": [],
+  "itr_niah_single_1": [],
+  "itr_niah_single_2": [],
+  "itr_niah_single_3": []
+ },
+ "n-samples": {
+  "itr_niah_multikey_1": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_multikey_2": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_multikey_3": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_multiquery": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_multivalue": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_single_1": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_single_2": {
+   "effective": 1500,
+   "original": 1500
+  },
+  "itr_niah_single_3": {
+   "effective": 1500,
+   "original": 1500
+  }
+ },
+ "results": {
+  "itr_niah_multikey_1": {
+   "16384,none": 0.876,
+   "16384_stderr,none": "N/A",
+   "4096,none": 0.998,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.956,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_multikey_2": {
+   "16384,none": 0.744,
+   "16384_stderr,none": "N/A",
+   "4096,none": 0.982,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.964,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_multikey_3": {
+   "16384,none": 0.038,
+   "16384_stderr,none": "N/A",
+   "4096,none": 0.474,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.222,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_multiquery": {
+   "16384,none": 0.916,
+   "16384_stderr,none": "N/A",
+   "4096,none": 0.976,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.951,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_multivalue": {
+   "16384,none": 0.825,
+   "16384_stderr,none": "N/A",
+   "4096,none": 0.981,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.9395,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_single_1": {
+   "16384,none": 1.0,
+   "16384_stderr,none": "N/A",
+   "4096,none": 1.0,
+   "4096_stderr,none": "N/A",
+   "8192,none": 1.0,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_single_2": {
+   "16384,none": 1.0,
+   "16384_stderr,none": "N/A",
+   "4096,none": 1.0,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.998,
+   "8192_stderr,none": "N/A"
+  },
+  "itr_niah_single_3": {
+   "16384,none": 0.982,
+   "16384_stderr,none": "N/A",
+   "4096,none": 1.0,
+   "4096_stderr,none": "N/A",
+   "8192,none": 0.988,
+   "8192_stderr,none": "N/A"
+  }
+ }
+}
