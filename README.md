@@ -5,6 +5,7 @@
 <p align="center">
   <a href="https://arxiv.org/abs/2610.00673"><img alt="arXiv: 2610.00673" src="https://img.shields.io/badge/arXiv-2610.00673-b31b1b"></a>
   <a href="https://huggingface.co/ai-forever/OrbitLM-1.8B-Thinking"><img alt="Hugging Face: OrbitLM-1.8B-Thinking" src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-OrbitLM--1.8B--Thinking-ffc107"></a>
+  <a href="https://habr.com/ru/companies/sberbank/articles/1111372/"><img alt="Как сделать looped LLM: от архитектуры до обучения с подкреплением" src="https://img.shields.io/badge/Habr-article%20%28RU%29-65a3be?logo=habr&logoColor=white"></a>
   <a href="LICENSE"><img alt="Лицензия: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-2f6fde"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-2f6fde">
 </p>
